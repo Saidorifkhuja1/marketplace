@@ -18,6 +18,7 @@ class Product(models.Model):
     description = models.TextField()
     location = models.CharField(max_length=255)
     photos = models.JSONField(default=list)
+    is_verified = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name

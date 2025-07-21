@@ -55,6 +55,8 @@ INSTALLED_APPS = [
     'product',
     'comment',
     'filters',
+    'liked',
+    'channels',
     'drf_yasg',
     "corsheaders",
     'rest_framework_simplejwt',
@@ -95,7 +97,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "core.wsgi.application"
-
+ASGI_APPLICATION = 'marketplace.asgi.application'
 
 
 DATABASES = {

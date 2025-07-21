@@ -6,6 +6,7 @@ from user.permissions import IsSeller
 from .models import Category
 from .serializers import *
 from user.permissions import IsAdmin
+from .utils import notify_admin_unverified_product
 
 
 class CategoryCreateView(generics.CreateAPIView):
@@ -46,7 +47,8 @@ class ProductCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated, IsSeller]
 
     def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
+        product = serializer.save(owner=self.request.user, is_verified=False)
+        notify_admin_unverified_product(product)
 
 
 class ProductListAPIView(generics.ListAPIView):
