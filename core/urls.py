@@ -36,7 +36,7 @@ class BothHttpAndHttpsSchemaGenerator(OpenAPISchemaGenerator):
 
 schema_view = get_schema_view(
    openapi.Info(
-      title="Urologiya  API",
+      title="Marketplace API",
       default_version='v1',
    ),
    public=True,
