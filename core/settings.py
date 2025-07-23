@@ -55,7 +55,7 @@ INSTALLED_APPS = [
     'product',
     'comment',
     'filters',
-    'liked',
+    'cart',
     'channels',
     'drf_yasg',
     'message',

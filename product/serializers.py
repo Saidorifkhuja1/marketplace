@@ -25,3 +25,5 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = '__all__'
         read_only_fields = ['uid', 'owner']
+
+
