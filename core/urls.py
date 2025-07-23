@@ -52,6 +52,7 @@ urlpatterns = [
     path('product/', include('product.urls')),
     path('filters/', include('filters.urls')),
     path('liked/', include('liked.urls')),
+    path('message/', include('message.urls')),
     # path('api/bemor/', include('bemor.urls')),
     # path('api/services/', include('services.urls')),
 

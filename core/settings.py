@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'liked',
     'channels',
     'drf_yasg',
+    'message',
     "corsheaders",
     'rest_framework_simplejwt',
     'drf_extra_fields',
