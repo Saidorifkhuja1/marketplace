@@ -21,7 +21,7 @@ class SendMessageView(generics.CreateAPIView):
     }
     """
     serializer_class = SendMessageSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -39,7 +39,7 @@ class MyMessagesListView(generics.ListAPIView):
     GET /api/messages/my-messages/
     """
     serializer_class = MessageSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Message.objects.filter(receiver=self.request.user)
@@ -68,7 +68,7 @@ class ChatMessagesView(generics.ListAPIView):
     GET /api/messages/chats/{chat_uid}/messages/
     """
     serializer_class = MessageSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         chat_uid = self.kwargs['chat_uid']
@@ -104,7 +104,7 @@ class SentMessagesView(generics.ListAPIView):
     GET /api/messages/sent/
     """
     serializer_class = MessageSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Message.objects.filter(sender=self.request.user)
@@ -116,7 +116,7 @@ class AllMessagesView(generics.ListAPIView):
     GET /api/messages/all/
     """
     serializer_class = MessageSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
