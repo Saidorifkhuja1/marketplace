@@ -1,7 +1,5 @@
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework.permissions import AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from .serializers import *
 from rest_framework import generics, permissions, status
@@ -35,9 +33,6 @@ class UserRegistrationAPIView(generics.CreateAPIView):
         return Response(token_data, status=status.HTTP_201_CREATED)
 
 
-class CustomTokenObtainPairView(TokenObtainPairView):
-    permission_classes = (AllowAny,)
-    serializer_class = CustomTokenObtainPairSerializer
 
 
 class UpdateProfileView(generics.UpdateAPIView):
