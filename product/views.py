@@ -15,27 +15,27 @@ from user.permissions import IsSeller, IsAdmin
 class CategoryCreateView(generics.CreateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [ IsAdmin]
+    # permission_classes = [ IsAdmin]
 
 
 class CategoryRetrieveView(generics.RetrieveAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [ IsAdmin]
+    # permission_classes = [ IsAdmin]
     lookup_field = 'uid'
 
 
 class CategoryUpdateView(generics.UpdateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [ IsAdmin]
+    # permission_classes = [ IsAdmin]
     lookup_field = 'uid'
 
 
 class CategoryDeleteView(generics.DestroyAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [ IsAdmin]
+    # permission_classes = [ IsAdmin]
     lookup_field = 'uid'
 
 
@@ -104,7 +104,7 @@ class ProductRetrieveView(generics.RetrieveAPIView):
 
 class ProductUpdateView(generics.UpdateAPIView):
     serializer_class = ProductCreateUpdateSerializer
-    permission_classes = [IsAuthenticated, IsSeller]
+    # permission_classes = [IsAuthenticated, IsSeller]
     parser_classes = [MultiPartParser, FormParser]
     lookup_field = 'uid'
 
@@ -120,7 +120,7 @@ class ProductUpdateView(generics.UpdateAPIView):
 class ProductDeleteView(generics.DestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated, IsSeller]
+    # permission_classes = [IsAuthenticated, IsSeller]
     lookup_field = 'uid'
 
     def get_queryset(self):
@@ -131,7 +131,7 @@ class ProductDeleteView(generics.DestroyAPIView):
 class MyProductsListView(generics.ListAPIView):
 
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Product.objects.filter(owner=self.request.user).order_by('-created_at')
@@ -139,7 +139,7 @@ class MyProductsListView(generics.ListAPIView):
 
 class PendingProductListView(generics.ListAPIView):
     serializer_class = ProductListSerializer
-    permission_classes = [IsAdmin]
+    # permission_classes = [IsAdmin]
 
     def get_queryset(self):
         return Product.objects.filter(status='pending')
@@ -150,7 +150,7 @@ class PendingProductListView(generics.ListAPIView):
 class ProductStatusUpdateView(generics.UpdateAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductStatusUpdateSerializer
-    permission_classes = [IsAdmin]
+    # permission_classes = [IsAdmin]
     lookup_field = 'uid'
 
     def perform_update(self, serializer):

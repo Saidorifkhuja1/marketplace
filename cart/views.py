@@ -11,7 +11,7 @@ from .serializers import CartSerializer
 
 class AddToCartView(generics.CreateAPIView):
     serializer_class = CartSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -20,7 +20,7 @@ class AddToCartView(generics.CreateAPIView):
 class RemoveFromCartView(generics.DestroyAPIView):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return Cart.objects.filter(user=self.request.user)
@@ -32,7 +32,7 @@ class RemoveFromCartView(generics.DestroyAPIView):
 
 class ListCartView(generics.ListAPIView):
     serializer_class = CartSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return Cart.objects.filter(user=self.request.user)
@@ -40,7 +40,7 @@ class ListCartView(generics.ListAPIView):
 
 class SearchCartView(generics.ListAPIView):
     serializer_class = CartSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         query = self.request.query_params.get('q', '')
