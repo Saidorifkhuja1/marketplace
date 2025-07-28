@@ -1,22 +1,25 @@
 # urls.py
 from django.urls import path
-from . import views
+from views import *
 
 urlpatterns = [
-    # Category URLs
-    path('categories/', views.CategoryListView.as_view(), name='category-list'),
-    path('categories/create/', views.CategoryCreateView.as_view(), name='category-create'),
-    path('categories/<uuid:uid>/', views.CategoryRetrieveView.as_view(), name='category-detail'),
-    path('categories/<uuid:uid>/update/', views.CategoryUpdateView.as_view(), name='category-update'),
-    path('categories/<uuid:uid>/delete/', views.CategoryDeleteView.as_view(), name='category-delete'),
 
-    # Product URLs
-    path('products/', views.ProductListAPIView.as_view(), name='product-list'),
-    path('products/create/', views.ProductCreateView.as_view(), name='product-create'),
-    path('products/<uuid:uid>/', views.ProductRetrieveView.as_view(), name='product-detail'),
-    path('products/<uuid:uid>/update/', views.ProductUpdateView.as_view(), name='product-update'),
-    path('products/<uuid:uid>/delete/', views.ProductDeleteView.as_view(), name='product-delete'),
+    path('categories/', CategoryListView.as_view()),
+    path('categories/create/', CategoryCreateView.as_view()),
+    path('categories/<uuid:uid>/', CategoryRetrieveView.as_view()),
+    path('categories/<uuid:uid>/update/', CategoryUpdateView.as_view()),
+    path('categories/<uuid:uid>/delete/', CategoryDeleteView.as_view()),
 
-    # My products
-    path('my-products/', views.MyProductsListView.as_view(), name='my-products'),
+
+    path('products/', ProductListAPIView.as_view()),
+    path('products/create/', ProductCreateView.as_view()),
+    path('products/<uuid:uid>/', ProductRetrieveView.as_view()),
+    path('products/<uuid:uid>/update/', ProductUpdateView.as_view()),
+    path('products/<uuid:uid>/delete/', ProductDeleteView.as_view()),
+
+
+    path('my-products/', MyProductsListView.as_view()),
+
+    path('admin/products/pending/', PendingProductListView.as_view()),
+    path('update_status/<uuid:uid>/', ProductStatusUpdateView.as_view()),
 ]

@@ -1,8 +1,8 @@
-# models.py
+
 import uuid
 from django.db import models
 from django.core.exceptions import ValidationError
-
+from django.utils import timezone
 from user.models import User
 
 
@@ -31,14 +31,14 @@ class Product(models.Model):
     location = models.CharField(max_length=255)
     status = models.CharField(choices=STATUS_CHOICES, default='pending', max_length=10)
 
-    # Photo fields - at least photo1 is required, others optional
-    photo1 = models.ImageField(upload_to='products/')  # Required
+
+    photo1 = models.ImageField(upload_to='products/')
     photo2 = models.ImageField(upload_to='products/', blank=True, null=True)
     photo3 = models.ImageField(upload_to='products/', blank=True, null=True)
     photo4 = models.ImageField(upload_to='products/', blank=True, null=True)
     photo5 = models.ImageField(upload_to='products/', blank=True, null=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -66,3 +66,5 @@ class Product(models.Model):
         # Ensure at least one photo is provided
         if not self.photo1:
             raise ValidationError("At least one photo is required.")
+
+

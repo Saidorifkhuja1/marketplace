@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'cart',
     'channels',
     'drf_yasg',
+    'django_filters',
     'message',
     "corsheaders",
     'rest_framework_simplejwt',
@@ -191,6 +192,17 @@ REST_FRAMEWORK = {
     ],
 }
 
+ASGI_APPLICATION = 'marketplace.asgi.application'
+
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
 
 
 from datetime import timedelta
@@ -251,3 +263,8 @@ EMAIL_SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 # EMAIL_HOST_USER = 'coderkuchkarov@gmail.com'
 # EMAIL_HOST_PASSWORD = 'gotlmweqzpzjfvue'
 # DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+
+
+

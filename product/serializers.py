@@ -89,7 +89,7 @@ class ProductCommentSerializer(serializers.ModelSerializer):
 
 
 class ProductCreateUpdateSerializer(serializers.ModelSerializer):
-    """Serializer specifically for create/update operations"""
+
 
     class Meta:
         model = Product
@@ -100,14 +100,43 @@ class ProductCreateUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, data):
-        """Validate that at least photo1 is provided"""
-        if not data.get('photo1'):
+
+        if not data.get('photo1') and self.instance and not self.instance.photo1:
             raise serializers.ValidationError({
                 'photo1': 'At least one photo is required.'
             })
+
+
+        if self.context['request'].method in ['PUT', 'PATCH']:
+            if data.get('status') == 'active':
+                raise serializers.ValidationError({
+                    'status': "You cannot set status to 'active'."
+                })
+
         return data
 
     def to_representation(self, instance):
-        """Use ProductSerializer for response"""
+
         serializer = ProductSerializer(instance, context=self.context)
         return serializer.data
+
+
+class ProductListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = [
+            'uid', 'name', 'cost', 'amount', 'category', 'description',
+            'location', 'status', 'created_at', 'updated_at'
+        ]
+
+
+class ProductStatusUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ['status']
+
+    def validate_status(self, value):
+        if value != 'active':
+            raise serializers.ValidationError("Admin can only update status to 'active'.")
+        return value
+

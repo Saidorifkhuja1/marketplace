@@ -1,14 +1,13 @@
-# views.py
-from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
+from django.utils import timezone
 from rest_framework.parsers import MultiPartParser, FormParser
-
+from rest_framework import generics, filters
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.exceptions import PermissionDenied
 from .models import Product, Category
-from .serializers import (
-    ProductSerializer, ProductCommentSerializer,
-    ProductCreateUpdateSerializer, CategorySerializer
-)
+from .serializers import *
 from user.permissions import IsSeller, IsAdmin
 
 
@@ -16,27 +15,27 @@ from user.permissions import IsSeller, IsAdmin
 class CategoryCreateView(generics.CreateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [ IsAdmin]
 
 
 class CategoryRetrieveView(generics.RetrieveAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [ IsAdmin]
     lookup_field = 'uid'
 
 
 class CategoryUpdateView(generics.UpdateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [ IsAdmin]
     lookup_field = 'uid'
 
 
 class CategoryDeleteView(generics.DestroyAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [ IsAdmin]
     lookup_field = 'uid'
 
 
@@ -57,28 +56,44 @@ class ProductCreateView(generics.CreateAPIView):
 
 
 class ProductListAPIView(generics.ListAPIView):
-    queryset = Product.objects.all()
+
     serializer_class = ProductSerializer
+    permission_classes = [AllowAny]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+
+    filterset_fields = ['category', 'owner', 'location']
+    search_fields = ['name', 'description', 'location']
+
+    ordering_fields = ['created_at', 'updated_at', 'cost', 'name']
+    ordering = ['-created_at']
 
     def get_queryset(self):
-        queryset = Product.objects.all()
 
-        # Filter by category if provided
-        category = self.request.query_params.get('category')
-        if category:
-            queryset = queryset.filter(category__uid=category)
+        return Product.objects.filter(
+            status='active'
+        ).select_related(
+            'owner', 'category'
+        ).order_by('-created_at')
 
-        # Filter by status if provided
-        status = self.request.query_params.get('status')
-        if status:
-            queryset = queryset.filter(status=status)
+    def list(self, request, *args, **kwargs):
 
-        # Filter by owner if provided
-        owner = self.request.query_params.get('owner')
-        if owner:
-            queryset = queryset.filter(owner__uid=owner)
+        queryset = self.filter_queryset(self.get_queryset())
 
-        return queryset.order_by('-created_at')
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response({
+                'products': serializer.data,
+                'total_count': queryset.count(),
+                'timestamp': timezone.now().isoformat(),  # For real-time sync
+            })
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'products': serializer.data,
+            'total_count': queryset.count(),
+            'timestamp': timezone.now().isoformat(),
+        })
 
 
 class ProductRetrieveView(generics.RetrieveAPIView):
@@ -94,11 +109,12 @@ class ProductUpdateView(generics.UpdateAPIView):
     lookup_field = 'uid'
 
     def get_queryset(self):
-        # Ensure users can only update their own products
         return Product.objects.filter(owner=self.request.user)
 
     def perform_update(self, serializer):
         serializer.save(owner=self.request.user)
+
+
 
 
 class ProductDeleteView(generics.DestroyAPIView):
@@ -108,14 +124,36 @@ class ProductDeleteView(generics.DestroyAPIView):
     lookup_field = 'uid'
 
     def get_queryset(self):
-        # Ensure users can only delete their own products
+
         return Product.objects.filter(owner=self.request.user)
 
 
 class MyProductsListView(generics.ListAPIView):
-    """List products belonging to the authenticated user"""
+
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Product.objects.filter(owner=self.request.user).order_by('-created_at')
+
+
+class PendingProductListView(generics.ListAPIView):
+    serializer_class = ProductListSerializer
+    permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        return Product.objects.filter(status='pending')
+
+
+
+
+class ProductStatusUpdateView(generics.UpdateAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductStatusUpdateSerializer
+    permission_classes = [IsAdmin]
+    lookup_field = 'uid'
+
+    def perform_update(self, serializer):
+        if serializer.validated_data.get('status') != 'active':
+            raise PermissionDenied("You can only set status to 'active'.")
+        serializer.save()
