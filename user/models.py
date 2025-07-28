@@ -44,7 +44,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     uid = models.UUIDField(default=uuid.uuid4, primary_key=True)
     name = models.CharField(max_length=250,blank=True, null=True)
     phone_number = models.CharField(validators=[PHONE_REGEX], max_length=21, unique=True, default="+998931112233",blank=True, null=True)
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True,blank=True, null=True)
     photo = models.ImageField(upload_to='accounts/photos/', blank=True, null=True)
     telegram_id = models.BigIntegerField(blank=True, null=True, unique=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='client')
