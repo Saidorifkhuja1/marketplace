@@ -8,7 +8,7 @@ class UserCreationForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ('phone_number', 'name', 'email', 'photo', 'role')
+        fields = ('phone_number', 'name', 'email','telegram_id', 'photo', 'role')
 
     def clean_password2(self):
         password1 = self.cleaned_data.get("password1")
@@ -28,10 +28,11 @@ class UserCreationForm(forms.ModelForm):
 class UserChangeForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ('phone_number', 'name', 'email', 'photo', 'role', 'is_active', 'is_admin', 'is_superuser')
+        fields = ('phone_number', 'name', 'email','telegram_id', 'photo', 'role', 'is_active', 'is_admin', 'is_superuser')
 
     def save(self, commit=True):
         user = super().save(commit=False)
         if commit:
             user.save()
         return user
+
