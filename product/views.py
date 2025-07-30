@@ -90,6 +90,7 @@ class ProductCreateView(generics.CreateAPIView):
             "message": "Product created. Photos stored temporarily. Must finalize within 5 days."
         }, status=status.HTTP_201_CREATED)
 
+
 class ProductListAPIView(generics.ListAPIView):
 
     serializer_class = ProductSerializer
