@@ -40,8 +40,11 @@ def register_user(request):
     name = request.data.get('name')
     auth_hash = request.data.get('auth_hash')
 
-    # Verify auth hash (same logic as in bot)
-    bot_secret = "AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs"  # From your bot token after ':'
+    if not telegram_id or not name or not auth_hash:
+        return Response({'error': 'Missing required fields'}, status=400)
+
+    # Verify auth hash
+    bot_secret = "AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs".split(":")[1]  # Secret part
     expected_hash = hmac.new(
         bot_secret.encode(),
         f"{telegram_id}:{name}".encode(),
@@ -52,11 +55,15 @@ def register_user(request):
         return Response({'error': 'Invalid authentication'}, status=401)
 
     # Create or get user
+
+
     user, created = User.objects.get_or_create(
-        username=f"tg_{telegram_id}",
+        telegram_id=telegram_id,
         defaults={
-            'first_name': name,
-            'telegram_id': telegram_id  # Add this field to your User model
+            'name': name,
+            'email': f"{telegram_id}@telegram.local",  # Fake unique email
+            'phone_number': f"+99899{str(telegram_id)[-7:]}",  # Dummy phone
+            'is_active': True
         }
     )
 
@@ -67,10 +74,9 @@ def register_user(request):
     return Response({
         'jwt_token': access_token,
         'refresh_token': str(refresh),
-        'user_id': user.id,
+        'user_id': str(user.uid),
         'message': 'User registered successfully'
     })
-
 
 class UpdateProfileView(generics.UpdateAPIView):
     serializer_class = UserUpdateSerializer
