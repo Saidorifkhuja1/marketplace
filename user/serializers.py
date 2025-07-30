@@ -3,22 +3,22 @@ from django.contrib.auth import authenticate
 from .models import User
 
 
-# class UserRegistrationSerializer(serializers.ModelSerializer):
-#     password = serializers.CharField(write_only=True)
-#
-#     class Meta:
-#         model = User
-#         fields = ('phone_number', 'name', 'email','telegram_id', 'photo', 'role', 'password')
-#
-#     def create(self, validated_data):
-#         password = validated_data.pop('password')
-#         user = User.objects.create_user(**validated_data, password=password)
-#         return user
-
 class UserRegistrationSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
     class Meta:
         model = User
-        fields = ('phone_number', 'name', 'email', 'telegram_id', 'photo', 'role')
+        fields = ('phone_number', 'name', 'email','telegram_id', 'photo', 'role', 'password')
+
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        user = User.objects.create_user(**validated_data, password=password)
+        return user
+
+# class UserRegistrationSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = User
+#         fields = ('phone_number', 'name', 'email', 'telegram_id', 'photo', 'role')
 
 
 # class CustomTokenObtainPairSerializer(serializers.Serializer):

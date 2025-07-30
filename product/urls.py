@@ -14,6 +14,7 @@ from product.views import (
     MyProductsListView,
     PendingProductListView,
     ProductStatusUpdateView,
+     FinalizeProductView
 )
 
 urlpatterns = [
@@ -36,4 +37,5 @@ urlpatterns = [
 
     path('admin/products/pending/', PendingProductListView.as_view()),
     path('update_status/<uuid:uid>/', ProductStatusUpdateView.as_view()),
+    path('products_finalize/<uuid:uid>/', FinalizeProductView.as_view()),
 ]

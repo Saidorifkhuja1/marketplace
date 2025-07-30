@@ -2,6 +2,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from .serializers import *
+from rest_framework.decorators import api_view
 from rest_framework import generics, permissions, status
 from rest_framework.permissions import IsAuthenticated
 from .utils import unhash_token
@@ -10,29 +11,65 @@ from rest_framework.exceptions import NotFound, AuthenticationFailed
 from django.contrib.auth.hashers import make_password, check_password
 from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
+import hashlib
+import hmac
 
+# class UserRegistrationAPIView(generics.CreateAPIView):
+#     queryset = User.objects.all()
+#     serializer_class = UserRegistrationSerializer
+#     parser_classes = [MultiPartParser, FormParser]
+#
+#     def post(self, request, *args, **kwargs):
+#         serializer = self.get_serializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         user = serializer.save()
+#
+#         refresh = RefreshToken.for_user(user)
+#         access_token = refresh.access_token
+#
+#         token_data = {
+#             "refresh": str(refresh),
+#             "access": str(access_token),
+#         }
+#
+#         return Response(token_data, status=status.HTTP_201_CREATED)
 
-class UserRegistrationAPIView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserRegistrationSerializer
-    parser_classes = [MultiPartParser, FormParser]
+@api_view(['POST'])
+def register_user(request):
+    telegram_id = request.data.get('telegram_id')
+    name = request.data.get('name')
+    auth_hash = request.data.get('auth_hash')
 
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+    # Verify auth hash (same logic as in bot)
+    bot_secret = "AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs"  # From your bot token after ':'
+    expected_hash = hmac.new(
+        bot_secret.encode(),
+        f"{telegram_id}:{name}".encode(),
+        hashlib.sha256
+    ).hexdigest()
 
-        refresh = RefreshToken.for_user(user)
-        access_token = refresh.access_token
+    if auth_hash != expected_hash:
+        return Response({'error': 'Invalid authentication'}, status=401)
 
-        token_data = {
-            "refresh": str(refresh),
-            "access": str(access_token),
+    # Create or get user
+    user, created = User.objects.get_or_create(
+        username=f"tg_{telegram_id}",
+        defaults={
+            'first_name': name,
+            'telegram_id': telegram_id  # Add this field to your User model
         }
+    )
 
-        return Response(token_data, status=status.HTTP_201_CREATED)
+    # Generate JWT token
+    refresh = RefreshToken.for_user(user)
+    access_token = str(refresh.access_token)
 
-
+    return Response({
+        'jwt_token': access_token,
+        'refresh_token': str(refresh),
+        'user_id': user.id,
+        'message': 'User registered successfully'
+    })
 
 
 class UpdateProfileView(generics.UpdateAPIView):

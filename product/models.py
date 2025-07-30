@@ -32,7 +32,7 @@ class Product(models.Model):
     status = models.CharField(choices=STATUS_CHOICES, default='pending', max_length=10)
 
 
-    photo1 = models.ImageField(upload_to='products/')
+    photo1 = models.ImageField(upload_to='products/', blank=True, null=True)
     photo2 = models.ImageField(upload_to='products/', blank=True, null=True)
     photo3 = models.ImageField(upload_to='products/', blank=True, null=True)
     photo4 = models.ImageField(upload_to='products/', blank=True, null=True)
@@ -62,9 +62,10 @@ class Product(models.Model):
                 urls.append(photo.url)
         return urls
 
-    def clean(self):
-        # Ensure at least one photo is provided
-        if not self.photo1:
-            raise ValidationError("At least one photo is required.")
+
+    # def clean(self):
+    #     # Ensure at least one photo is provided
+    #     if not self.photo1:
+    #         raise ValidationError("At least one photo is required.")
 
 
