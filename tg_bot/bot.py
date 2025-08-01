@@ -63,7 +63,12 @@ from aiogram.filters import CommandStart
 from aiogram.client.default import DefaultBotProperties
 from tg_bot.tokens import *
 
-logging.basicConfig(level=logging.INFO)
+# Enhanced logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 bot = Bot(
     token=BOT_TOKEN,
@@ -74,10 +79,11 @@ dp = Dispatcher(storage=MemoryStorage())
 
 def generate_auth_hash(telegram_id: int, username: str) -> str:
     """Generate a secure hash for mini app authentication"""
-    # Use bot token as secret key for HMAC
-    secret = BOT_TOKEN.split(':')[1]  # Get the secret part of bot token
+    secret = BOT_TOKEN.split(':')[1]
     data = f"{telegram_id}:{username}"
-    return hmac.new(secret.encode(), data.encode(), hashlib.sha256).hexdigest()
+    hash_value = hmac.new(secret.encode(), data.encode(), hashlib.sha256).hexdigest()
+    logger.info(f"Generated hash for {telegram_id}:{username} = {hash_value}")
+    return hash_value
 
 
 @dp.message(CommandStart())
@@ -85,6 +91,8 @@ async def start_handler(message: Message):
     user = message.from_user
     telegram_id = user.id
     username = user.username or f"{user.first_name} {user.last_name or ''}".strip()
+
+    logger.info(f"Start command from user {telegram_id} ({username})")
 
     # Generate auth hash for mini app
     auth_hash = generate_auth_hash(telegram_id, username)
@@ -107,26 +115,49 @@ async def start_handler(message: Message):
     )
 
     # Register user and get JWT token
+    registration_data = {
+        "telegram_id": telegram_id,
+        "name": username,
+        "auth_hash": auth_hash
+    }
+
+    logger.info(f"Sending registration data: {registration_data}")
+
     async with aiohttp.ClientSession() as session:
-        data = {
-            "telegram_id": telegram_id,
-            "name": username,
-            "auth_hash": auth_hash  # Send auth hash for verification
-        }
         try:
-            async with session.post(f"{API_URL}/user/register/", json=data) as resp:
+            async with session.post(
+                    f"{API_URL}/user/register/",
+                    json=registration_data,
+                    headers={'Content-Type': 'application/json'}
+            ) as resp:
+                response_text = await resp.text()
+                logger.info(f"API Response Status: {resp.status}")
+                logger.info(f"API Response Body: {response_text}")
+
                 if resp.status in (200, 201):
-                    response_data = await resp.json()
-                    jwt_token = response_data.get('jwt_token')
-                    logging.info(f"User {telegram_id} registered with JWT token")
+                    try:
+                        response_data = await resp.json()
+                        jwt_token = response_data.get('jwt_token')
+                        logger.info(f"User {telegram_id} registered successfully with JWT token")
+                    except Exception as json_error:
+                        logger.error(f"Error parsing JSON response: {json_error}")
+                        logger.error(f"Raw response: {response_text}")
                 else:
-                    logging.warning(f"Registration failed: {await resp.text()}")
+                    logger.warning(f"Registration failed with status {resp.status}: {response_text}")
+                    # Send error message to user
+                    await message.answer("⚠️ Registration failed. Please try again later.")
+
+        except aiohttp.ClientError as e:
+            logger.error(f"Network error during registration: {e}")
+            await message.answer("⚠️ Network error. Please check your connection and try again.")
         except Exception as e:
-            logging.error(f"Error posting data: {e}")
+            logger.error(f"Unexpected error during registration: {e}")
+            await message.answer("⚠️ An unexpected error occurred. Please try again.")
 
 
 # Run bot
 async def main():
+    logger.info("Starting bot...")
     await dp.start_polling(bot)
 
 

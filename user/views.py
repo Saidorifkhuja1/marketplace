@@ -1,5 +1,7 @@
+from django.db import transaction
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
+import logging
 from rest_framework.parsers import MultiPartParser, FormParser
 from .serializers import *
 from rest_framework.decorators import api_view
@@ -34,49 +36,91 @@ import hmac
 #
 #         return Response(token_data, status=status.HTTP_201_CREATED)
 
+logger = logging.getLogger(__name__)
+
+
 @api_view(['POST'])
 def register_user(request):
+    logger.info(f"Registration request received: {request.data}")
+
     telegram_id = request.data.get('telegram_id')
     name = request.data.get('name')
     auth_hash = request.data.get('auth_hash')
 
+    # Validate required fields
     if not telegram_id or not name or not auth_hash:
+        logger.error(f"Missing fields - telegram_id: {telegram_id}, name: {name}, auth_hash: {auth_hash}")
         return Response({'error': 'Missing required fields'}, status=400)
 
     # Verify auth hash
-    bot_secret = "AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs".split(":")[1]  # Secret part
+    bot_secret = "AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs".split(":")[1]
     expected_hash = hmac.new(
         bot_secret.encode(),
         f"{telegram_id}:{name}".encode(),
         hashlib.sha256
     ).hexdigest()
 
+    logger.info(f"Expected hash: {expected_hash}, Received hash: {auth_hash}")
+
     if auth_hash != expected_hash:
+        logger.error("Hash verification failed")
         return Response({'error': 'Invalid authentication'}, status=401)
 
-    # Create or get user
+    try:
+        with transaction.atomic():
+            # Check if user already exists
+            existing_user = User.objects.filter(telegram_id=telegram_id).first()
 
+            if existing_user:
+                logger.info(f"User {telegram_id} already exists, updating...")
+                # Update existing user
+                existing_user.name = name
+                existing_user.save()
+                user = existing_user
+                created = False
+            else:
+                logger.info(f"Creating new user for telegram_id: {telegram_id}")
 
-    user, created = User.objects.get_or_create(
-        telegram_id=telegram_id,
-        defaults={
-            'name': name,
-            'email': f"{telegram_id}@telegram.local",  # Fake unique email
-            'phone_number': f"+99899{str(telegram_id)[-7:]}",  # Dummy phone
-            'is_active': True
-        }
-    )
+                # Generate unique email and phone
+                unique_email = f"tg_{telegram_id}@telegram.local"
+                unique_phone = f"+99890{str(telegram_id)[-7:].zfill(7)}"
 
-    # Generate JWT token
-    refresh = RefreshToken.for_user(user)
-    access_token = str(refresh.access_token)
+                # Create new user
+                user = User.objects.create(
+                    telegram_id=telegram_id,
+                    name=name,
+                    email=unique_email,
+                    phone_number=unique_phone,
+                    is_active=True,
+                    role='client'
+                )
+                created = True
+                logger.info(f"User created successfully: {user.uid}")
 
-    return Response({
-        'jwt_token': access_token,
-        'refresh_token': str(refresh),
-        'user_id': str(user.uid),
-        'message': 'User registered successfully'
-    })
+        # Generate JWT token
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+
+        logger.info(f"JWT token generated for user {user.uid}")
+
+        return Response({
+            'jwt_token': access_token,
+            'refresh_token': str(refresh),
+            'user_id': str(user.uid),
+            'created': created,
+            'message': 'User registered successfully'
+        }, status=201 if created else 200)
+
+    except Exception as e:
+        logger.error(f"Error creating/updating user: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+
+        return Response({
+            'error': f'Database error: {str(e)}'
+        }, status=500)
+
 
 class UpdateProfileView(generics.UpdateAPIView):
     serializer_class = UserUpdateSerializer
