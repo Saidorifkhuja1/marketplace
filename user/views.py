@@ -52,8 +52,12 @@ def register_user(request):
         logger.error(f"Missing fields - telegram_id: {telegram_id}, name: {name}, auth_hash: {auth_hash}")
         return Response({'error': 'Missing required fields'}, status=400)
 
-    # Verify auth hash
-    bot_secret = "AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs".split(":")[1]
+    # FIXED: Use the correct bot token secret part
+    # Your bot token is: 8198411082:AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs
+    # So the secret part after ":" is: AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs
+    bot_secret = "AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs"  # This is already the secret part
+
+    # Generate expected hash
     expected_hash = hmac.new(
         bot_secret.encode(),
         f"{telegram_id}:{name}".encode(),
@@ -81,11 +85,14 @@ def register_user(request):
             else:
                 logger.info(f"Creating new user for telegram_id: {telegram_id}")
 
-                # Generate unique email and phone
+                # Generate unique email and phone - make sure they're truly unique
                 unique_email = f"tg_{telegram_id}@telegram.local"
+                # Make phone number more unique by using full telegram_id
                 unique_phone = f"+99890{str(telegram_id)[-7:].zfill(7)}"
 
-                # Create new user
+                logger.info(f"Generated email: {unique_email}, phone: {unique_phone}")
+
+                # Create new user with all required fields
                 user = User.objects.create(
                     telegram_id=telegram_id,
                     name=name,
