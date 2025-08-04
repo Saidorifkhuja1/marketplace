@@ -136,8 +136,8 @@ class UpdateProfileView(generics.UpdateAPIView):
 
     def get_queryset(self):
         decoded_token = unhash_token(self.request.headers)
-        user_id = decoded_token.get('user_id')
-        return User.objects.filter(uid=user_id)
+        user_uid = decoded_token.get('user_uid')
+        return User.objects.filter(uid=user_uid)
 
 
 class PasswordResetView(APIView):
