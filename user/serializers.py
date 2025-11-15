@@ -15,31 +15,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data, password=password)
         return user
 
-# class UserRegistrationSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = User
-#         fields = ('phone_number', 'name', 'email', 'telegram_id', 'photo', 'role')
-
-
-# class CustomTokenObtainPairSerializer(serializers.Serializer):
-#     email = serializers.EmailField()
-#     password = serializers.CharField()
-#
-#     def validate(self, attrs):
-#         email = attrs.get('email')
-#         password = attrs.get('password')
-#
-#         if email and password:
-#             user = authenticate(request=self.context.get('request'), email=email, password=password)
-#             if not user:
-#                 raise serializers.ValidationError('Invalid email or password')
-#             if not user.is_active:
-#                 raise serializers.ValidationError('User account is disabled')
-#         else:
-#             raise serializers.ValidationError('Must include email and password')
-#
-#         attrs['user'] = user
-#         return attrs
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
