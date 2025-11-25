@@ -6,15 +6,15 @@ from product.views import (
     CategoryRetrieveView,
     CategoryUpdateView,
     CategoryDeleteView,
+
     ProductListAPIView,
     ProductCreateView,
     ProductRetrieveView,
     ProductUpdateView,
     ProductDeleteView,
     MyProductsListView,
-    PendingProductListView,
-    ProductStatusUpdateView,
-     FinalizeProductView
+    # PendingProductListView,
+
 )
 
 urlpatterns = [
@@ -35,7 +35,6 @@ urlpatterns = [
 
     path('my-products/', MyProductsListView.as_view()),
 
-    path('admin/products/pending/', PendingProductListView.as_view()),
-    path('update_status/<uuid:uid>/', ProductStatusUpdateView.as_view()),
-    path('products_finalize/<uuid:uid>/', FinalizeProductView.as_view()),
+    # path('admin/products/pending/', PendingProductListView.as_view()),
+
 ]

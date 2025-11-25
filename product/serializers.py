@@ -25,72 +25,26 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only_fields = ['uid', 'owner', 'created_at', 'updated_at']
 
     def get_photos(self, obj):
-        """Return list of photo URLs"""
         request = self.context.get('request')
         photos = []
 
         for i in range(1, 6):
             photo = getattr(obj, f'photo{i}')
-            if photo and request:
-                photos.append(request.build_absolute_uri(photo.url))
-            elif photo:
-                photos.append(photo.url)
+            if photo:
+                photos.append(request.build_absolute_uri(photo.url) if request else photo.url)
 
         return photos
 
     def validate(self, data):
-        """Validate that at least photo1 is provided"""
-        # For creation, photo1 is required
-        if self.instance is None:  # Creating new instance
+        if self.instance is None:  # create
             if not data.get('photo1'):
                 raise serializers.ValidationError({
                     'photo1': 'At least one photo is required.'
                 })
-
-        # For updates, if photo1 is being cleared, ensure it's not empty
-        elif self.instance and 'photo1' in data:
-            if not data.get('photo1') and not self.instance.photo1:
-                raise serializers.ValidationError({
-                    'photo1': 'At least one photo is required.'
-                })
-
         return data
 
 
-class ProductCommentSerializer(serializers.ModelSerializer):
-    """Serializer for product detail view with comments"""
-    comments = CommentSerializer(many=True, read_only=True)
-    photos = serializers.SerializerMethodField(read_only=True)
-    owner_name = serializers.CharField(source='owner.username', read_only=True)
-    category_name = serializers.CharField(source='category.name', read_only=True)
-
-    class Meta:
-        model = Product
-        fields = [
-            'uid', 'name', 'cost', 'amount', 'owner', 'owner_name',
-            'category', 'category_name', 'description', 'location',
-            'status', 'created_at', 'updated_at', 'photo1', 'photo2',
-            'photo3', 'photo4', 'photo5', 'photos', 'comments'
-        ]
-
-    def get_photos(self, obj):
-        """Return list of photo URLs"""
-        request = self.context.get('request')
-        photos = []
-
-        for i in range(1, 6):
-            photo = getattr(obj, f'photo{i}')
-            if photo and request:
-                photos.append(request.build_absolute_uri(photo.url))
-            elif photo:
-                photos.append(photo.url)
-
-        return photos
-
-
 class ProductCreateUpdateSerializer(serializers.ModelSerializer):
-
-
     class Meta:
         model = Product
         fields = [
@@ -100,13 +54,19 @@ class ProductCreateUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, data):
-
-        if not data.get('photo1') and self.instance and not self.instance.photo1:
+        # create
+        if not self.instance and not data.get('photo1'):
             raise serializers.ValidationError({
                 'photo1': 'At least one photo is required.'
             })
 
+        # update
+        if self.instance and not self.instance.photo1 and not data.get('photo1'):
+            raise serializers.ValidationError({
+                'photo1': 'At least one photo is required.'
+            })
 
+        # seller cannot activate product
         if self.context['request'].method in ['PUT', 'PATCH']:
             if data.get('status') == 'active':
                 raise serializers.ValidationError({
@@ -116,9 +76,9 @@ class ProductCreateUpdateSerializer(serializers.ModelSerializer):
         return data
 
     def to_representation(self, instance):
+        return ProductSerializer(instance, context=self.context).data
 
-        serializer = ProductSerializer(instance, context=self.context)
-        return serializer.data
+
 
 
 class ProductListSerializer(serializers.ModelSerializer):
@@ -128,15 +88,3 @@ class ProductListSerializer(serializers.ModelSerializer):
             'uid', 'name', 'cost', 'amount', 'category', 'description',
             'location', 'status', 'created_at', 'updated_at'
         ]
-
-
-class ProductStatusUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Product
-        fields = ['status']
-
-    def validate_status(self, value):
-        if value != 'active':
-            raise serializers.ValidationError("Admin can only update status to 'active'.")
-        return value
-

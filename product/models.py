@@ -63,9 +63,9 @@ class Product(models.Model):
         return urls
 
 
-    # def clean(self):
-    #     # Ensure at least one photo is provided
-    #     if not self.photo1:
-    #         raise ValidationError("At least one photo is required.")
 
-
+class PendingProduct(Product):
+    class Meta:
+        proxy = True
+        verbose_name = "Pending Product"
+        verbose_name_plural = "Pending Products"

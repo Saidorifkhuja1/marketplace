@@ -52,8 +52,8 @@ urlpatterns = [
     path('product/', include('product.urls')),
     path('filters/', include('filters.urls')),
     path('cart/', include('cart.urls')),
-    path('message/', include('message.urls')),
-    # path('api/bemor/', include('bemor.urls')),
+    # path('message/', include('message.urls')),
+    path('comment/', include('comment.urls')),
     # path('api/services/', include('services.urls')),
 
     path('docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
