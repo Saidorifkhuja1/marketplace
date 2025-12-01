@@ -56,7 +56,6 @@ INSTALLED_APPS = [
     'comment',
     'filters',
     'cart',
-
     'drf_yasg',
     'django_filters',
     'message',
