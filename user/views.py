@@ -1,206 +1,188 @@
 from django.db import transaction
+from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
-import logging
+from rest_framework import status, generics
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
-from .serializers import *
-from rest_framework.decorators import api_view
-from rest_framework import generics, permissions, status
-from rest_framework.permissions import IsAuthenticated
-from .utils import unhash_token
-from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import NotFound, AuthenticationFailed
-from django.contrib.auth.hashers import make_password, check_password
-from rest_framework.views import APIView
-from drf_yasg.utils import swagger_auto_schema
-import hashlib
-import hmac
+from django.utils import timezone
+import logging
 
-# class UserRegistrationAPIView(generics.CreateAPIView):
-#     queryset = User.objects.all()
-#     serializer_class = UserRegistrationSerializer
-#     parser_classes = [MultiPartParser, FormParser]
-#
-#     def post(self, request, *args, **kwargs):
-#         serializer = self.get_serializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         user = serializer.save()
-#
-#         refresh = RefreshToken.for_user(user)
-#         access_token = refresh.access_token
-#
-#         token_data = {
-#             "refresh": str(refresh),
-#             "access": str(access_token),
-#         }
-#
-#         return Response(token_data, status=status.HTTP_201_CREATED)
+from .models import User, UserLoginHistory
+from .serializers import (
+    TelegramAuthSerializer,
+    UserProfileSerializer,
+    UserUpdateSerializer,
+    PasswordResetSerializer,
+    LoginHistorySerializer
+)
+from .telegram_auth import verify_telegram_auth, get_client_ip
 
 logger = logging.getLogger(__name__)
 
 
 @api_view(['POST'])
-def register_user(request):
-    logger.info(f"Registration request received: {request.data}")
-
-    telegram_id = request.data.get('telegram_id')
-    name = request.data.get('name')
-    auth_hash = request.data.get('auth_hash')
-
-    # Validate required fields
-    if not telegram_id or not name or not auth_hash:
-        logger.error(f"Missing fields - telegram_id: {telegram_id}, name: {name}, auth_hash: {auth_hash}")
-        return Response({'error': 'Missing required fields'}, status=400)
-
-    # FIXED: Use the correct bot token secret part
-    # Your bot token is: 8198411082:AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs
-    # So the secret part after ":" is: AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs
-    bot_secret = "AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs"  # This is already the secret part
-
-    # Generate expected hash
-    expected_hash = hmac.new(
-        bot_secret.encode(),
-        f"{telegram_id}:{name}".encode(),
-        hashlib.sha256
-    ).hexdigest()
-
-    logger.info(f"Expected hash: {expected_hash}, Received hash: {auth_hash}")
-
-    if auth_hash != expected_hash:
-        logger.error("Hash verification failed")
-        return Response({'error': 'Invalid authentication'}, status=401)
-
+@permission_classes([AllowAny])
+def telegram_auth_view(request):
+    """
+    Telegram Web App authentication endpoint
+    User avtomatik register yoki login qiladi
+    """
     try:
-        with transaction.atomic():
-            # Check if user already exists
-            existing_user = User.objects.filter(telegram_id=telegram_id).first()
-
-            if existing_user:
-                logger.info(f"User {telegram_id} already exists, updating...")
-                # Update existing user
-                existing_user.name = name
-                existing_user.save()
-                user = existing_user
-                created = False
-            else:
-                logger.info(f"Creating new user for telegram_id: {telegram_id}")
-
-                # Generate unique email and phone - make sure they're truly unique
-                unique_email = f"tg_{telegram_id}@telegram.local"
-                # Make phone number more unique by using full telegram_id
-                unique_phone = f"+99890{str(telegram_id)[-7:].zfill(7)}"
-
-                logger.info(f"Generated email: {unique_email}, phone: {unique_phone}")
-
-                # Create new user with all required fields
-                user = User.objects.create(
-                    telegram_id=telegram_id,
-                    name=name,
-                    email=unique_email,
-                    phone_number=unique_phone,
-                    is_active=True,
-                    role='client'
-                )
-                created = True
-                logger.info(f"User created successfully: {user.uid}")
-
-        # Generate JWT token
-        refresh = RefreshToken.for_user(user)
-        access_token = str(refresh.access_token)
-
-        logger.info(f"JWT token generated for user {user.uid}")
-
-        return Response({
-            'jwt_token': access_token,
-            'refresh_token': str(refresh),
-            'user_id': str(user.uid),
-            'created': created,
-            'message': 'User registered successfully'
-        }, status=201 if created else 200)
-
-    except Exception as e:
-        logger.error(f"Error creating/updating user: {str(e)}")
-        logger.error(f"Exception type: {type(e).__name__}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-
-        return Response({
-            'error': f'Database error: {str(e)}'
-        }, status=500)
-
-
-class UpdateProfileView(generics.UpdateAPIView):
-    serializer_class = UserUpdateSerializer
-    permission_classes = [IsAuthenticated]
-    lookup_field = "uid"
-
-    def get_queryset(self):
-        decoded_token = unhash_token(self.request.headers)
-        user_uid = decoded_token.get('user_uid')
-        return User.objects.filter(uid=user_uid)
-
-
-class PasswordResetView(APIView):
-    queryset = User.objects.all()
-    serializer_class = PasswordResetSerializer
-    permission_classes = [IsAuthenticated]
-
-    @swagger_auto_schema(
-        request_body=PasswordResetSerializer
-    )
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        decoded_token = unhash_token(request.headers)
-        user_id = decoded_token.get("user_id")
-
-        if not user_id:
-            raise AuthenticationFailed("User ID not found in token")
-
-        old_password = serializer.validated_data.get("old_password")
-        new_password = serializer.validated_data.get("new_password")
-
-        user = get_object_or_404(User, uid=user_id)
-
-        if not check_password(old_password, user.password):
+        serializer = TelegramAuthSerializer(data=request.data)
+        if not serializer.is_valid():
             return Response(
-                {"error": "Incorrect old password!"},
-                status=status.HTTP_400_BAD_REQUEST,
+                {'error': 'Invalid data', 'details': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        user.password = make_password(new_password)
-        user.save()
+        auth_data = serializer.validated_data.copy()
 
+        # Telegram ma'lumotlarini tekshirish
+        if not verify_telegram_auth(auth_data):
+            logger.warning(f"Invalid Telegram auth attempt for ID: {auth_data.get('id')}")
+            return Response(
+                {'error': 'Invalid Telegram authentication'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        telegram_id = auth_data['id']
+
+        with transaction.atomic():
+            # User mavjudligini tekshirish
+            user, created = User.objects.get_or_create(
+                telegram_id=telegram_id,
+                defaults={
+                    'name': f"{auth_data.get('first_name', '')} {auth_data.get('last_name', '')}".strip(),
+                    'username': auth_data.get('username', ''),
+                }
+            )
+
+            # Agar user o'chirilgan bo'lsa, qayta tiklash
+            if user.is_deleted:
+                user.restore()
+
+            # Last login vaqtini yangilash
+            user.last_login_at = timezone.now()
+            user.save()
+
+            # Login history yozish
+            UserLoginHistory.objects.create(
+                user=user,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                success=True
+            )
+
+            # JWT token yaratish
+            refresh = RefreshToken.for_user(user)
+
+            logger.info(f"User {'created' if created else 'logged in'}: {user.telegram_id}")
+
+            return Response({
+                'success': True,
+                'created': created,
+                'user': UserProfileSerializer(user).data,
+                'tokens': {
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh)
+                }
+            }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Telegram auth error: {str(e)}")
         return Response(
-            {"data": "Password changed successfully"},
-            status=status.HTTP_200_OK
+            {'error': 'Authentication failed', 'details': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 
-class RetrieveProfileView(generics.RetrieveAPIView):
-    serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, *args, **kwargs):
-        decoded_token = unhash_token(self.request.headers)
-        user_id = decoded_token.get('user_id')
-
-        if not user_id:
-            raise NotFound("User not found")
-
-        user = get_object_or_404(User, uid=user_id)
-        serializer = self.get_serializer(user)
-        return Response(serializer.data)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def token_verify_view(request):
+    """Token verification endpoint"""
+    return Response({
+        'valid': True,
+        'user': UserProfileSerializer(request.user).data
+    })
 
 
-class DeleteProfileAPIView(generics.DestroyAPIView):
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def token_refresh_view(request):
+    """Token refresh endpoint"""
+    try:
+        refresh = RefreshToken.for_user(request.user)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh)
+        })
+    except Exception as e:
+        return Response(
+            {'error': 'Token refresh failed'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+class UserProfileView(generics.RetrieveUpdateAPIView):
+    """User profile view"""
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]
-    lookup_field = 'uid'
+    parser_classes = (MultiPartParser, FormParser)
 
-    def get_queryset(self):
-        decoded_token = unhash_token(self.request.headers)
-        user_id = decoded_token.get('user_id')
-        return User.objects.filter(uid=user_id)
+    def get_object(self):
+        return self.request.user
+
+    def update(self, request, *args, **kwargs):
+        serializer = UserUpdateSerializer(
+            instance=request.user,
+            data=request.data,
+            partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(UserProfileSerializer(request.user).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password_view(request):
+    """Password change endpoint"""
+    serializer = PasswordResetSerializer(data=request.data)
+    if serializer.is_valid():
+        user = request.user
+
+        if not user.check_password(serializer.validated_data['old_password']):
+            return Response(
+                {'error': 'Old password is incorrect'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.set_password(serializer.validated_data['new_password'])
+        user.save()
+
+        return Response({'success': True, 'message': 'Password changed successfully'})
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_account_view(request):
+    """Account soft delete endpoint"""
+    user = request.user
+    user.soft_delete()
+    logger.info(f"User account soft deleted: {user.telegram_id}")
+    return Response({'success': True, 'message': 'Account deleted successfully'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def login_history_view(request):
+    """User login history"""
+    history = UserLoginHistory.objects.filter(user=request.user)[:20]
+    serializer = LoginHistorySerializer(history, many=True)
+    return Response(serializer.data)
 

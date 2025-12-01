@@ -1,17 +1,20 @@
 from django.urls import path
-from .views import *
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-
+from . import views
 
 urlpatterns = [
-    path('register/', register_user, name='telegram-register'),
-    path('profile/update/<int:uid>/', UpdateProfileView.as_view()),
-    path('profile/delete/<int:uid>/', DeleteProfileAPIView.as_view()),
-    path('profile/retrieve/', RetrieveProfileView.as_view()),
-    path('login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('reset_password/', PasswordResetView.as_view()),
+    # Authentication
+    path('auth/telegram/', views.telegram_auth_view, name='telegram-auth'),
+    path('auth/verify/', views.token_verify_view, name='token-verify'),
+    path('auth/refresh/', views.token_refresh_view, name='token-refresh'),
 
+    # User Profile
+    path('profile/', views.UserProfileView.as_view(), name='user-profile'),
+    path('profile/change-password/', views.change_password_view, name='change-password'),
+    path('profile/delete/', views.delete_account_view, name='delete-account'),
+
+    # Login History
+    path('profile/login-history/', views.login_history_view, name='login-history'),
 ]
+
 
 

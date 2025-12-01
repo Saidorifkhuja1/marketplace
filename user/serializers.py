@@ -1,36 +1,66 @@
 from rest_framework import serializers
-from django.contrib.auth import authenticate
-from .models import User
+from django.contrib.auth.password_validation import validate_password
+from .models import User, UserLoginHistory
+
+
+class TelegramAuthSerializer(serializers.Serializer):
+    """Telegram Web App authentication serializer"""
+    id = serializers.IntegerField()
+    first_name = serializers.CharField(required=False, allow_blank=True)
+    last_name = serializers.CharField(required=False, allow_blank=True)
+    username = serializers.CharField(required=False, allow_blank=True)
+    photo_url = serializers.URLField(required=False, allow_blank=True)
+    auth_date = serializers.IntegerField()
+    hash = serializers.CharField()
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-
     class Meta:
         model = User
-        fields = ('phone_number', 'name', 'email','telegram_id', 'photo', 'role', 'password')
-
-    def create(self, validated_data):
-        password = validated_data.pop('password')
-        user = User.objects.create_user(**validated_data, password=password)
-        return user
-
+        fields = ('telegram_id', 'name', 'username', 'phone_number', 'email', 'photo', 'role')
+        read_only_fields = ('uid',)
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('name', 'phone_number', 'email','telegram_id', 'photo', 'role')
-        read_only_fields = ('uid',)
+        fields = ('name', 'username', 'phone_number', 'email', 'photo', 'role')
+        read_only_fields = ('uid', 'telegram_id')
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('uid', 'name', 'phone_number', 'email','telegram_id', 'photo', 'role', 'is_active')
-        read_only_fields = ('uid', 'is_active')
+        fields = (
+            'uid',
+            'name',
+            'username',
+            'phone_number',
+            'email',
+            'telegram_id',
+            'photo',
+            'role',
+            'is_active',
+            'created_at',
+            'last_login_at'
+        )
+        read_only_fields = ('uid', 'telegram_id', 'is_active', 'created_at')
 
 
 class PasswordResetSerializer(serializers.Serializer):
-    old_password = serializers.CharField()
-    new_password = serializers.CharField()
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+
+    def validate_new_password(self, value):
+        validate_password(value)
+        return value
+
+
+class LoginHistorySerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source='user.name', read_only=True)
+
+    class Meta:
+        model = UserLoginHistory
+        fields = ('id', 'user', 'user_name', 'login_time', 'ip_address', 'user_agent', 'success')
+        read_only_fields = ('id', 'user', 'login_time')
+
