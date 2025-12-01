@@ -34,6 +34,8 @@ class ProductFilterByLocationView(generics.ListAPIView):
         return Product.objects.filter(location__icontains=location)
 
 
+
+
 class ProductFilterByCostRangeView(generics.ListAPIView):
     serializer_class = ProductSerializer
 
