@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import os
 import ssl
+import sys
 from pathlib import Path
 
 import certifi as certifi
@@ -23,7 +24,15 @@ env.read_env()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+sys.path.append(str(BASE_DIR / 'tg_bot'))
 
+try:
+    from tokens import BOT_TOKEN
+    TELEGRAM_BOT_TOKEN = BOT_TOKEN
+    print(f"✅ Telegram Bot Token imported successfully")
+except ImportError as e:
+    print(f"❌ Error importing BOT_TOKEN: {e}")
+    TELEGRAM_BOT_TOKEN = None
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
