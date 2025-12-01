@@ -7,3 +7,6 @@ urlpatterns = [
     path('products/filter/location/', ProductFilterByLocationView.as_view()),
     path('products/filter/cost/', ProductFilterByCostRangeView.as_view()),
 ]
+
+
+

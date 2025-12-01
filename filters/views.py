@@ -73,3 +73,5 @@ class ProductFilterByCostRangeView(generics.ListAPIView):
             raise ValidationError({'detail': '"min" cannot be greater than "max".'})
 
         return Product.objects.filter(cost__gte=min_cost, cost__lte=max_cost)
+
+
