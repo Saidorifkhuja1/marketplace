@@ -8,15 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def verify_telegram_auth(auth_data):
-    """
-    Telegram Web App authentication ma'lumotlarini tekshiradi
 
-    Args:
-        auth_data (dict): Telegram dan kelgan auth ma'lumotlari
-
-    Returns:
-        bool: Ma'lumotlar to'g'ri bo'lsa True, aks holda False
-    """
     try:
         # Hash ni olish va auth_data dan o'chirish
         received_hash = auth_data.pop('hash', None)
