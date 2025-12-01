@@ -2,6 +2,9 @@ import hashlib
 import hmac
 from django.conf import settings
 from datetime import datetime, timedelta
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def verify_telegram_auth(auth_data):
@@ -18,20 +21,37 @@ def verify_telegram_auth(auth_data):
         # Hash ni olish va auth_data dan o'chirish
         received_hash = auth_data.pop('hash', None)
         if not received_hash:
+            logger.warning("No hash provided in auth_data")
             return False
+
+        logger.info(f"Received hash: {received_hash}")
+        logger.info(f"Auth data (without hash): {auth_data}")
 
         # auth_date ni tekshirish (24 soatdan eski bo'lmasligi kerak)
         auth_date = auth_data.get('auth_date')
         if auth_date:
-            auth_time = datetime.fromtimestamp(int(auth_date))
-            if datetime.now() - auth_time > timedelta(hours=24):
+            try:
+                auth_time = datetime.fromtimestamp(int(auth_date))
+                time_diff = datetime.now() - auth_time
+                logger.info(f"Auth time: {auth_time}, Time diff: {time_diff}")
+
+                if time_diff > timedelta(hours=24):
+                    logger.warning(f"Auth data is too old: {time_diff}")
+                    return False
+            except (ValueError, TypeError) as e:
+                logger.error(f"Invalid auth_date: {auth_date}, error: {e}")
                 return False
 
-        # Data stringini yaratish
+        # Data stringini yaratish (MUHIM: faqat bo'sh bo'lmagan qiymatlar)
+        # Bo'sh stringlarni olib tashlash
+        filtered_data = {k: v for k, v in auth_data.items() if v != '' and v is not None}
+
         data_check_string = '\n'.join([
             f"{key}={value}"
-            for key, value in sorted(auth_data.items())
+            for key, value in sorted(filtered_data.items())
         ])
+
+        logger.info(f"Data check string: {data_check_string}")
 
         # Secret key yaratish
         secret_key = hmac.new(
@@ -47,11 +67,14 @@ def verify_telegram_auth(auth_data):
             digestmod=hashlib.sha256
         ).hexdigest()
 
+        logger.info(f"Calculated hash: {calculated_hash}")
+        logger.info(f"Hash match: {hmac.compare_digest(calculated_hash, received_hash)}")
+
         # Hashlarni solishtirish
         return hmac.compare_digest(calculated_hash, received_hash)
 
     except Exception as e:
-        print(f"Telegram auth verification error: {e}")
+        logger.error(f"Telegram auth verification error: {e}", exc_info=True)
         return False
 
 
