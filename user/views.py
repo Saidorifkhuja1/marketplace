@@ -15,7 +15,8 @@ from .serializers import (
     UserProfileSerializer,
     UserUpdateSerializer,
     PasswordResetSerializer,
-    LoginHistorySerializer
+    LoginHistorySerializer,
+    LoginSerializer
 )
 from .telegram_auth import verify_telegram_auth, get_client_ip
 
@@ -185,4 +186,97 @@ def login_history_view(request):
     history = UserLoginHistory.objects.filter(user=request.user)[:20]
     serializer = LoginHistorySerializer(history, many=True)
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_view(request):
+    """
+    Email and password login endpoint
+    Returns JWT tokens for authenticated user
+    """
+    try:
+        serializer = LoginSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {'error': 'Invalid data', 'details': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
+
+        # Find user by email
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            logger.warning(f"Login attempt with non-existent email: {email}")
+            return Response(
+                {'error': 'Invalid email or password'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Check if user is active
+        if not user.is_active:
+            logger.warning(f"Login attempt with inactive user: {email}")
+            return Response(
+                {'error': 'User account is inactive'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Check if user is deleted
+        if user.is_deleted:
+            logger.warning(f"Login attempt with deleted user: {email}")
+            return Response(
+                {'error': 'User account has been deleted'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Verify password
+        if not user.check_password(password):
+            logger.warning(f"Invalid password attempt for user: {email}")
+            # Log failed login attempt
+            UserLoginHistory.objects.create(
+                user=user,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                success=False
+            )
+            return Response(
+                {'error': 'Invalid email or password'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Update last login time
+        user.last_login_at = timezone.now()
+        user.save()
+
+        # Log successful login
+        UserLoginHistory.objects.create(
+            user=user,
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+            success=True
+        )
+
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+
+        logger.info(f"User logged in successfully: {email}")
+
+        return Response({
+            'success': True,
+            'user': UserProfileSerializer(user).data,
+            'tokens': {
+                'access': str(refresh.access_token),
+                'refresh': str(refresh)
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        return Response(
+            {'error': 'Login failed', 'details': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 

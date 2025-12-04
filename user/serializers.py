@@ -64,3 +64,9 @@ class LoginHistorySerializer(serializers.ModelSerializer):
         fields = ('id', 'user', 'user_name', 'login_time', 'ip_address', 'user_agent', 'success')
         read_only_fields = ('id', 'user', 'login_time')
 
+
+class LoginSerializer(serializers.Serializer):
+    """Email and password login serializer"""
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+

@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     # Authentication
     path('auth/telegram/', views.telegram_auth_view, name='telegram-auth'),
+    path('auth/login/', views.login_view, name='login'),
     path('auth/verify/', views.token_verify_view, name='token-verify'),
     path('auth/refresh/', views.token_refresh_view, name='token-refresh'),
 
