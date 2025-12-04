@@ -43,3 +43,6 @@ typing-inspection==0.4.1
 typing_extensions==4.14.1
 uritemplate==4.2.0
 yarl==1.20.1
+psycopg2-binary==2.9.9
+gunicorn==21.2.0
+whitenoise==6.6.0

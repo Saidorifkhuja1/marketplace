@@ -25,6 +25,7 @@ from drf_yasg import openapi
 from drf_yasg.generators import OpenAPISchemaGenerator
 
 from core import settings
+from core.health_check import health_check
 
 
 class BothHttpAndHttpsSchemaGenerator(OpenAPISchemaGenerator):
@@ -46,6 +47,8 @@ schema_view = get_schema_view(
 
 
 urlpatterns = [
+    # Health check
+    path('health/', health_check, name='health-check'),
 
     path('admin/', admin.site.urls),
     path('user/', include('user.urls')),
