@@ -17,4 +17,7 @@ class CartSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         product_uid = validated_data.pop('product_uid')
         product = Product.objects.get(uid=product_uid)
-        return Cart.objects.create(user=self.context['request'].user, product=product, **validated_data)
+        user = self.context['request'].user
+        return Cart.objects.create(product=product, user=user)
+
+

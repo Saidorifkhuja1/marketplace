@@ -1,17 +1,17 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from .models import Comment
-from .serializers import CommentSerializer
-
+from .serializers import CommentSerializer, CommentCreateSerializer
 
 
 class CommentCreateView(generics.CreateAPIView):
     queryset = Comment.objects.all()
-    serializer_class = CommentSerializer
+    serializer_class = CommentCreateSerializer
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
 
 
 class CommentUpdateView(generics.UpdateAPIView):
@@ -41,4 +41,4 @@ class MyCommentsListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Comment.objects.filter(owner=self.request.user).order_by('-id')
+        return Comment.objects.filter(owner=self.request.user).order_by('-uid')

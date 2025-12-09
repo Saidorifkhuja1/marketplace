@@ -40,12 +40,12 @@ except ImportError as e:
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-zpt&ylc%s_v(!_cfsd^bt!s!0$4u$1t^-w(()4g7v9dqnjv3+q')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool('DEBUG', default=False)
+DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 CSRF_TRUSTED_ORIGINS = ['https://qrmenu.pythonanywhere.com']
-CORS_ALLOWED_ORIGINS = ["*"]
 CORS_ALLOW_ALL_ORIGINS = True
+
 
 
 
@@ -182,7 +182,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 MEDIA_URL = '/media/'

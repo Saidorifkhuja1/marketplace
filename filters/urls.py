@@ -1,19 +1,11 @@
 from django.urls import path
-from .views import (
-    ProductSearchByNameView,
-    ProductFilterByCategoryView,
-    ProductFilterByLocationView,
-    ProductFilterByCostRangeView
-)
-
-app_name = 'filters'
+from . import views
 
 urlpatterns = [
-    path('products/search/', ProductSearchByNameView.as_view(), name='product-search'),
-    path('products/filter/category/', ProductFilterByCategoryView.as_view(), name='filter-by-category'),
-    path('products/filter/location/', ProductFilterByLocationView.as_view(), name='filter-by-location'),
-    path('products/filter/cost/', ProductFilterByCostRangeView.as_view(), name='filter-by-cost'),
+    path('products/filter/category/', views.filter_by_category),
+    path('products/filter/location/', views.filter_by_location),
+    path('products/filter/price/', views.filter_by_price),
+    path('products/search/', views.search_products),
 ]
-
 
 

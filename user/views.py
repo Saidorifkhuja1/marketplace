@@ -8,6 +8,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.utils import timezone
 import logging
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 from .models import User, UserLoginHistory
 from .serializers import (
@@ -188,6 +190,31 @@ def login_history_view(request):
     return Response(serializer.data)
 
 
+@swagger_auto_schema(
+    method='post',
+    request_body=LoginSerializer,
+    responses={
+        200: openapi.Response(
+            description='Login successful',
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'success': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                    'user': openapi.Schema(type=openapi.TYPE_OBJECT),
+                    'tokens': openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'access': openapi.Schema(type=openapi.TYPE_STRING),
+                            'refresh': openapi.Schema(type=openapi.TYPE_STRING),
+                        }
+                    )
+                }
+            )
+        ),
+        401: openapi.Response(description='Invalid credentials'),
+        400: openapi.Response(description='Invalid data'),
+    }
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):

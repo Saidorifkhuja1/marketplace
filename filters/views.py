@@ -8,168 +8,127 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 
-class ProductSearchByNameView(generics.ListAPIView):
-    """
-    Product nomini qidirish
-    Query param: q (search query)
-    Example: /filters/products/search/?q=iphone
-    """
-    serializer_class = ProductSerializer
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
-                'q', openapi.IN_QUERY,
-                description="Search query for product name",
-                type=openapi.TYPE_STRING,
-                required=True
-            )
-        ],
-        operation_description="Search products by name (case-insensitive)"
+from product.models import Product
+from product.serializers import ProductSerializer
+
+
+# ============================
+#   FILTER BY CATEGORY
+# ============================
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[
+        openapi.Parameter(
+            'category',
+            openapi.IN_QUERY,
+            description="Kategoriya nomi bo‘yicha filter",
+            type=openapi.TYPE_STRING
+        ),
+    ],
+    responses={200: ProductSerializer(many=True)}
+)
+@api_view(['GET'])
+def filter_by_category(request):
+    category = request.GET.get('category')
+    if not category:
+        return Response({"error": "category parametri kerak"}, status=400)
+
+    products = Product.objects.filter(category__name__icontains=category)
+    serializer = ProductSerializer(products, many=True)
+    return Response(serializer.data, status=200)
+
+
+# ============================
+#   FILTER BY LOCATION
+# ============================
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[
+        openapi.Parameter(
+            'location',
+            openapi.IN_QUERY,
+            description="Manzil bo‘yicha filter (masalan: Namangan)",
+            type=openapi.TYPE_STRING
+        ),
+    ],
+    responses={200: ProductSerializer(many=True)}
+)
+@api_view(['GET'])
+def filter_by_location(request):
+    location = request.GET.get('location')
+    if not location:
+        return Response({"error": "location parametri kerak"}, status=400)
+
+    products = Product.objects.filter(location__icontains=location)
+    serializer = ProductSerializer(products, many=True)
+    return Response(serializer.data, status=200)
+
+
+# ============================
+#   FILTER BY PRICE RANGE
+# ============================
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[
+        openapi.Parameter(
+            'min',
+            openapi.IN_QUERY,
+            description="Minimum narx",
+            type=openapi.TYPE_INTEGER
+        ),
+        openapi.Parameter(
+            'max',
+            openapi.IN_QUERY,
+            description="Maksimum narx",
+            type=openapi.TYPE_INTEGER
+        ),
+    ],
+    responses={200: ProductSerializer(many=True)}
+)
+@api_view(['GET'])
+def filter_by_price(request):
+    min_price = request.GET.get('min')
+    max_price = request.GET.get('max')
+
+    if not min_price or not max_price:
+        return Response({"error": "min va max parametrlari kerak"}, status=400)
+
+    products = Product.objects.filter(
+        cost__gte=min_price,
+        cost__lte=max_price
     )
-    def get(self, request, *args, **kwargs):
-        query = request.query_params.get('q', '')
-        if not query:
-            return Response(
-                {'detail': 'Search query "q" is required.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        return self.list(request, *args, **kwargs)
 
-    def get_queryset(self):
-        query = self.request.query_params.get('q', '')
-        return Product.objects.filter(name__icontains=query, is_deleted=False)
+    serializer = ProductSerializer(products, many=True)
+    return Response(serializer.data, status=200)
 
 
-class ProductFilterByCategoryView(generics.ListAPIView):
-    """
-    Category bo'yicha filter
-    Query param: category (category name)
-    Example: /filters/products/filter/category/?category=Electronics
-    """
-    serializer_class = ProductSerializer
+# ============================
+#   SEARCH BY NAME
+# ============================
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[
+        openapi.Parameter(
+            'query',
+            openapi.IN_QUERY,
+            description="Mahsulot nomi bo‘yicha qidiruv",
+            type=openapi.TYPE_STRING
+        ),
+    ],
+    responses={200: ProductSerializer(many=True)}
+)
+@api_view(['GET'])
+def search_products(request):
+    query = request.GET.get('query')
+    if not query:
+        return Response({"error": "query parametri kerak"}, status=400)
 
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
-                'category', openapi.IN_QUERY,
-                description="Category name for filtering",
-                type=openapi.TYPE_STRING,
-                required=True
-            )
-        ],
-        operation_description="Filter products by category name"
-    )
-    def get(self, request, *args, **kwargs):
-        category = request.query_params.get('category', '')
-        if not category:
-            return Response(
-                {'detail': 'Category name is required.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        return self.list(request, *args, **kwargs)
-
-    def get_queryset(self):
-        category_name = self.request.query_params.get('category', '')
-        return Product.objects.filter(
-            category__name__iexact=category_name,
-            is_deleted=False
-        )
-
-
-class ProductFilterByLocationView(generics.ListAPIView):
-    """
-    Location bo'yicha filter
-    Query param: location (location name)
-    Example: /filters/products/filter/location/?location=Tashkent
-    """
-    serializer_class = ProductSerializer
-
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
-                'location', openapi.IN_QUERY,
-                description="Location for filtering",
-                type=openapi.TYPE_STRING,
-                required=True
-            )
-        ],
-        operation_description="Filter products by location"
-    )
-    def get(self, request, *args, **kwargs):
-        location = request.query_params.get('location', '')
-        if not location:
-            return Response(
-                {'detail': 'Location is required.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        return self.list(request, *args, **kwargs)
-
-    def get_queryset(self):
-        location = self.request.query_params.get('location', '')
-        return Product.objects.filter(
-            location__icontains=location,
-            is_deleted=False
-        )
-
-
-class ProductFilterByCostRangeView(generics.ListAPIView):
-    """
-    Narx oralig'i bo'yicha filter
-    Query params: min, max (cost range)
-    Example: /filters/products/filter/cost/?min=100&max=500
-    """
-    serializer_class = ProductSerializer
-
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
-                'min', openapi.IN_QUERY,
-                description="Minimum product cost",
-                type=openapi.TYPE_NUMBER,
-                required=True
-            ),
-            openapi.Parameter(
-                'max', openapi.IN_QUERY,
-                description="Maximum product cost",
-                type=openapi.TYPE_NUMBER,
-                required=True
-            )
-        ],
-        operation_description="Filter products by cost range"
-    )
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-    def get_queryset(self):
-        min_cost = self.request.query_params.get('min')
-        max_cost = self.request.query_params.get('max')
-
-        if min_cost is None or max_cost is None:
-            raise ValidationError({
-                'detail': 'Both "min" and "max" cost values are required.'
-            })
-
-        try:
-            min_cost = float(min_cost)
-            max_cost = float(max_cost)
-        except ValueError:
-            raise ValidationError({
-                'detail': '"min" and "max" must be valid numbers.'
-            })
-
-        if min_cost < 0 or max_cost < 0:
-            raise ValidationError({
-                'detail': 'Cost values cannot be negative.'
-            })
-
-        if min_cost > max_cost:
-            raise ValidationError({
-                'detail': '"min" cannot be greater than "max".'
-            })
-
-        return Product.objects.filter(
-            cost__gte=min_cost,
-            cost__lte=max_cost,
-            is_deleted=False
-        )
+    products = Product.objects.filter(name__icontains=query)
+    serializer = ProductSerializer(products, many=True)
+    return Response(serializer.data, status=200)
