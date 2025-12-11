@@ -67,7 +67,7 @@ INSTALLED_APPS = [
     'cart',
     'drf_yasg',
     'django_filters',
-    'message',
+    # 'message',
     "corsheaders",
     'rest_framework_simplejwt',
     'drf_extra_fields',

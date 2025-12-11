@@ -155,3 +155,4 @@ class LoginHistoryAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         # Login history o'zgartirib bo'lmaydi
         return False
+
