@@ -25,6 +25,22 @@ from .telegram_auth import verify_telegram_auth, get_client_ip
 logger = logging.getLogger(__name__)
 
 
+from django.db import transaction, IntegrityError
+from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
+import logging
+
+from .models import User, UserLoginHistory
+from .serializers import TelegramAuthSerializer, UserProfileSerializer
+from .telegram_auth import verify_telegram_auth, get_client_ip
+
+logger = logging.getLogger(__name__)
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def telegram_auth_view(request):
@@ -32,45 +48,60 @@ def telegram_auth_view(request):
     Telegram Web App authentication endpoint
     User avtomatik register yoki login qiladi
     """
+    serializer = TelegramAuthSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(
+            {'error': 'Invalid data', 'details': serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    auth_data = serializer.validated_data.copy()
+
+    # 1️⃣ Telegram auth tekshirish
+    if not verify_telegram_auth(auth_data):
+        logger.warning(f"Invalid Telegram auth attempt for ID: {auth_data.get('id')}")
+        return Response(
+            {'error': 'Invalid Telegram authentication'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    telegram_id = auth_data['id']
+
+    # 2️⃣ Telegram user uchun UNIQUE email
+    email = f"telegram_{telegram_id}@telegram.local"
+
+    # 3️⃣ Ismni xavfsiz shakllantirish
+    name = (
+        f"{auth_data.get('first_name', '')} {auth_data.get('last_name', '')}".strip()
+        or auth_data.get('username')
+        or "Telegram User"
+    )
+
+    username = auth_data.get('username', '')
+
     try:
-        serializer = TelegramAuthSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                {'error': 'Invalid data', 'details': serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        auth_data = serializer.validated_data.copy()
-
-        # Telegram ma'lumotlarini tekshirish
-        if not verify_telegram_auth(auth_data):
-            logger.warning(f"Invalid Telegram auth attempt for ID: {auth_data.get('id')}")
-            return Response(
-                {'error': 'Invalid Telegram authentication'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-
-        telegram_id = auth_data['id']
-
         with transaction.atomic():
-            # User mavjudligini tekshirish
+            # 4️⃣ User yaratish yoki olish
             user, created = User.objects.get_or_create(
                 telegram_id=telegram_id,
                 defaults={
-                    'name': f"{auth_data.get('first_name', '')} {auth_data.get('last_name', '')}".strip(),
-                    'username': auth_data.get('username', ''),
+                    'email': email,        # 🔑 MUHIM
+                    'name': name,
+                    'username': username,
+                    'is_active': True,
+                    'role': 'client',
                 }
             )
 
-            # Agar user o'chirilgan bo'lsa, qayta tiklash
+            # 5️⃣ Agar user soft-delete qilingan bo‘lsa — tiklash
             if user.is_deleted:
                 user.restore()
 
-            # Last login vaqtini yangilash
+            # 6️⃣ Login vaqtini yangilash
             user.last_login_at = timezone.now()
-            user.save()
+            user.save(update_fields=['last_login_at'])
 
-            # Login history yozish
+            # 7️⃣ Login history yozish
             UserLoginHistory.objects.create(
                 user=user,
                 ip_address=get_client_ip(request),
@@ -78,28 +109,39 @@ def telegram_auth_view(request):
                 success=True
             )
 
-            # JWT token yaratish
+            # 8️⃣ JWT tokenlar
             refresh = RefreshToken.for_user(user)
 
-            logger.info(f"User {'created' if created else 'logged in'}: {user.telegram_id}")
+            logger.info(
+                f"Telegram user {'created' if created else 'logged in'}: {telegram_id}"
+            )
 
-            return Response({
-                'success': True,
-                'created': created,
-                'user': UserProfileSerializer(user).data,
-                'tokens': {
-                    'access': str(refresh.access_token),
-                    'refresh': str(refresh)
-                }
-            }, status=status.HTTP_200_OK)
+            return Response(
+                {
+                    'success': True,
+                    'created': created,
+                    'user': UserProfileSerializer(user).data,
+                    'tokens': {
+                        'access': str(refresh.access_token),
+                        'refresh': str(refresh)
+                    }
+                },
+                status=status.HTTP_200_OK
+            )
+
+    except IntegrityError as e:
+        logger.error(f"Telegram auth DB error: {str(e)}")
+        return Response(
+            {'error': 'User creation failed', 'details': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     except Exception as e:
-        logger.error(f"Telegram auth error: {str(e)}")
+        logger.error(f"Telegram auth error: {str(e)}", exc_info=True)
         return Response(
             {'error': 'Authentication failed', 'details': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

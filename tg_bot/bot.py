@@ -1,5 +1,3 @@
-
-
 import logging
 import aiohttp
 import hashlib
@@ -85,16 +83,16 @@ async def start_handler(message: Message):
     # Hash ni auth_data ga qo'shish
     auth_data['hash'] = auth_hash
 
-    # Mini app URL (agar kerak bo'lsa)
-    # mini_app_url = f"https://yourdomain.com/miniapp?..."
+    # Mini app URL yaratish
+    mini_app_url = "https://marketplacenone.netlify.app"
 
-    # Inline keyboard (ixtiyoriy - agar web app kerak bo'lsa)
-    # keyboard = InlineKeyboardMarkup(inline_keyboard=[
-    #     [InlineKeyboardButton(
-    #         text="🛒 Open Marketplace",
-    #         web_app=WebAppInfo(url=mini_app_url)
-    #     )]
-    # ])
+    # Inline keyboard yaratish - Web App tugmasi
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="🛒 Open Marketplace",
+            web_app=WebAppInfo(url=mini_app_url)
+        )]
+    ])
 
     # Django backend ga registration/login so'rovi
     logger.info(f"Sending auth data to Django: {auth_data}")
@@ -132,7 +130,8 @@ async def start_handler(message: Message):
                                     f"🎉 Welcome to Marketplace, <b>{user_name}</b>!\n\n"
                                     f"✅ Your account has been created successfully.\n"
                                     f"🔐 You are now logged in.\n\n"
-                                    f"Use /menu to explore the marketplace."
+                                    f"Click the button below to open the marketplace! 👇",
+                                    reply_markup=keyboard
                                 )
                             else:
                                 # Mavjud user login qildi
@@ -140,7 +139,8 @@ async def start_handler(message: Message):
                                 await message.answer(
                                     f"👋 Welcome back, <b>{user_name}</b>!\n\n"
                                     f"✅ You are now logged in.\n\n"
-                                    f"Use /menu to explore the marketplace."
+                                    f"Click the button below to open the marketplace! 👇",
+                                    reply_markup=keyboard
                                 )
 
                             # Token'larni saqlash (ixtiyoriy - bot uchun kerak bo'lmasligi mumkin)
