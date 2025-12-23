@@ -70,3 +70,5 @@ class LoginSerializer(serializers.Serializer):
     """Email and password login serializer"""
     email = serializers.EmailField(help_text="User email address")
     password = serializers.CharField(write_only=True, help_text="User password")
+
+

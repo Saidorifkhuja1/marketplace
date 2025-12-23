@@ -43,26 +43,35 @@ class RegistrationStates(StatesGroup):
 def generate_telegram_hash(auth_data: dict, bot_token: str) -> str:
     """
     Generate Telegram WebApp authentication hash
-    To'g'ri Telegram hash generation algoritmi
+    CRITICAL: phone_number should NOT be included in hash calculation
     """
-    # Data check string yaratish (sorted keys)
-    data_check_arr = [f"{k}={v}" for k, v in sorted(auth_data.items())]
+    # Remove phone_number from hash calculation (it's not part of Telegram's hash)
+    data_for_hash = auth_data.copy()
+    data_for_hash.pop('phone_number', None)
+
+    # Filter out empty values
+    filtered_data = {k: v for k, v in data_for_hash.items() if v != '' and v is not None}
+
+    # Create data check string (sorted keys)
+    data_check_arr = [f"{k}={v}" for k, v in sorted(filtered_data.items())]
     data_check_string = '\n'.join(data_check_arr)
 
-    # Secret key yaratish
+    # Create secret key
     secret_key = hmac.new(
         key="WebAppData".encode(),
         msg=bot_token.encode(),
         digestmod=hashlib.sha256
     ).digest()
 
-    # Hash yaratish
+    # Generate hash
     hash_value = hmac.new(
         key=secret_key,
         msg=data_check_string.encode(),
         digestmod=hashlib.sha256
     ).hexdigest()
 
+    logger.info(f"Data for hash: {filtered_data}")
+    logger.info(f"Data check string: {data_check_string}")
     logger.info(f"Generated Telegram hash: {hash_value}")
     return hash_value
 
@@ -125,23 +134,26 @@ async def phone_received_handler(message: Message, state: FSMContext):
 
     logger.info(f"Phone number received from user {telegram_id}: {phone_number}")
 
-    # Telegram auth data yaratish
-    auth_data = {
+    # Telegram auth data yaratish (WITHOUT phone_number for hash)
+    auth_data_for_hash = {
         'id': telegram_id,
-        'auth_date': int(time.time()),
-        'phone_number': phone_number  # Telefon raqamini qo'shish
+        'auth_date': int(time.time())
     }
 
     # Bo'sh bo'lmagan maydonlarni qo'shish
     if first_name:
-        auth_data['first_name'] = first_name
+        auth_data_for_hash['first_name'] = first_name
     if last_name:
-        auth_data['last_name'] = last_name
+        auth_data_for_hash['last_name'] = last_name
     if username:
-        auth_data['username'] = username
+        auth_data_for_hash['username'] = username
 
-    # Hash yaratish
-    auth_hash = generate_telegram_hash(auth_data.copy(), BOT_TOKEN)
+    # Hash yaratish (phone_number'siz)
+    auth_hash = generate_telegram_hash(auth_data_for_hash, BOT_TOKEN)
+
+    # Full auth data with phone_number for API
+    auth_data = auth_data_for_hash.copy()
+    auth_data['phone_number'] = phone_number
     auth_data['hash'] = auth_hash
 
     # Mini app URL yaratish
@@ -290,5 +302,5 @@ async def main():
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
 
+    asyncio.run(main())

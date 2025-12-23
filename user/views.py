@@ -358,3 +358,5 @@ def login_view(request):
             {'error': 'Login failed', 'details': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
