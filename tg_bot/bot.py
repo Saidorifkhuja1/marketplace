@@ -42,28 +42,24 @@ class RegistrationStates(StatesGroup):
 
 def generate_telegram_hash(auth_data: dict, bot_token: str) -> str:
     """
-    Generate Telegram WebApp authentication hash
-    CRITICAL: phone_number should NOT be included in hash calculation
+    Generate Telegram Login Widget compatible hash (not WebApp init data).
+    phone_number must be excluded from the hash calculation.
     """
     # Remove phone_number from hash calculation (it's not part of Telegram's hash)
     data_for_hash = auth_data.copy()
     data_for_hash.pop('phone_number', None)
 
     # Filter out empty values
-    filtered_data = {k: v for k, v in data_for_hash.items() if v != '' and v is not None}
+    filtered_data = {k: v for k, v in data_for_hash.items() if v not in ('', None)}
 
     # Create data check string (sorted keys)
     data_check_arr = [f"{k}={v}" for k, v in sorted(filtered_data.items())]
     data_check_string = '\n'.join(data_check_arr)
 
-    # Create secret key
-    secret_key = hmac.new(
-        key="WebAppData".encode(),
-        msg=bot_token.encode(),
-        digestmod=hashlib.sha256
-    ).digest()
+    # Telegram Login Widget verification:
+    # secret_key = sha256(bot_token), then HMAC of data_check_string with that key
+    secret_key = hashlib.sha256(bot_token.encode()).digest()
 
-    # Generate hash
     hash_value = hmac.new(
         key=secret_key,
         msg=data_check_string.encode(),
