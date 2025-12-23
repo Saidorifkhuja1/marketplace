@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
@@ -25,31 +25,16 @@ from .telegram_auth import verify_telegram_auth, get_client_ip
 logger = logging.getLogger(__name__)
 
 
-from django.db import transaction, IntegrityError
-from django.utils import timezone
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework_simplejwt.tokens import RefreshToken
-import logging
-
-from .models import User, UserLoginHistory
-from .serializers import TelegramAuthSerializer, UserProfileSerializer
-from .telegram_auth import verify_telegram_auth, get_client_ip
-
-logger = logging.getLogger(__name__)
-
-
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def telegram_auth_view(request):
     """
-    Telegram Web App authentication endpoint
+    Telegram Web App authentication endpoint with phone number
     User avtomatik register yoki login qiladi
     """
     serializer = TelegramAuthSerializer(data=request.data)
     if not serializer.is_valid():
+        logger.error(f"Invalid data: {serializer.errors}")
         return Response(
             {'error': 'Invalid data', 'details': serializer.errors},
             status=status.HTTP_400_BAD_REQUEST
@@ -66,42 +51,58 @@ def telegram_auth_view(request):
         )
 
     telegram_id = auth_data['id']
+    phone_number = auth_data.get('phone_number', '')  # Telefon raqamini olish
 
-    # 2️⃣ Telegram user uchun UNIQUE email
+    # 2️⃣ Telefon raqamini formatlash (+998 bilan boshlansa)
+    if phone_number and not phone_number.startswith('+'):
+        phone_number = f"+{phone_number}"
+
+    logger.info(f"Processing auth for telegram_id: {telegram_id}, phone: {phone_number}")
+
+    # 3️⃣ Telegram user uchun UNIQUE email
     email = f"telegram_{telegram_id}@telegram.local"
 
-    # 3️⃣ Ismni xavfsiz shakllantirish
+    # 4️⃣ Ismni xavfsiz shakllantirish
     name = (
-        f"{auth_data.get('first_name', '')} {auth_data.get('last_name', '')}".strip()
-        or auth_data.get('username')
-        or "Telegram User"
+            f"{auth_data.get('first_name', '')} {auth_data.get('last_name', '')}".strip()
+            or auth_data.get('username')
+            or "Telegram User"
     )
 
     username = auth_data.get('username', '')
 
     try:
         with transaction.atomic():
-            # 4️⃣ User yaratish yoki olish
+            # 5️⃣ User yaratish yoki olish (telegram_id bo'yicha)
             user, created = User.objects.get_or_create(
                 telegram_id=telegram_id,
                 defaults={
-                    'email': email,        # 🔑 MUHIM
+                    'email': email,
                     'name': name,
                     'username': username,
+                    'phone_number': phone_number if phone_number else None,  # Telefon raqamini saqlash
                     'is_active': True,
                     'role': 'client',
                 }
             )
 
-            # 5️⃣ Agar user soft-delete qilingan bo‘lsa — tiklash
+            # 6️⃣ Agar user mavjud bo'lsa va telefon raqami yangi bo'lsa, yangilash
+            if not created and phone_number:
+                if user.phone_number != phone_number:
+                    user.phone_number = phone_number
+                    user.save(update_fields=['phone_number'])
+                    logger.info(f"Updated phone number for user {telegram_id}")
+
+            # 7️⃣ Agar user soft-delete qilingan bo'lsa — tiklash
             if user.is_deleted:
                 user.restore()
+                logger.info(f"Restored deleted user {telegram_id}")
 
-            # 6️⃣ Login vaqtini yangilash
+            # 8️⃣ Login vaqtini yangilash
             user.last_login_at = timezone.now()
             user.save(update_fields=['last_login_at'])
 
-            # 7️⃣ Login history yozish
+            # 9️⃣ Login history yozish
             UserLoginHistory.objects.create(
                 user=user,
                 ip_address=get_client_ip(request),
@@ -109,11 +110,11 @@ def telegram_auth_view(request):
                 success=True
             )
 
-            # 8️⃣ JWT tokenlar
+            # 🔟 JWT tokenlar
             refresh = RefreshToken.for_user(user)
 
             logger.info(
-                f"Telegram user {'created' if created else 'logged in'}: {telegram_id}"
+                f"Telegram user {'created' if created else 'logged in'}: {telegram_id}, phone: {phone_number}"
             )
 
             return Response(
@@ -131,6 +132,14 @@ def telegram_auth_view(request):
 
     except IntegrityError as e:
         logger.error(f"Telegram auth DB error: {str(e)}")
+
+        # Agar telefon raqami allaqachon mavjud bo'lsa
+        if 'phone_number' in str(e):
+            return Response(
+                {'error': 'This phone number is already registered with another account'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         return Response(
             {'error': 'User creation failed', 'details': str(e)},
             status=status.HTTP_400_BAD_REQUEST
@@ -142,6 +151,7 @@ def telegram_auth_view(request):
             {'error': 'Authentication failed', 'details': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -348,4 +358,3 @@ def login_view(request):
             {'error': 'Login failed', 'details': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-

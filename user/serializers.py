@@ -4,12 +4,13 @@ from .models import User, UserLoginHistory
 
 
 class TelegramAuthSerializer(serializers.Serializer):
-    """Telegram Web App authentication serializer"""
+    """Telegram Web App authentication serializer with phone number"""
     id = serializers.IntegerField()
     first_name = serializers.CharField(required=False, allow_blank=True)
     last_name = serializers.CharField(required=False, allow_blank=True)
     username = serializers.CharField(required=False, allow_blank=True)
     photo_url = serializers.URLField(required=False, allow_blank=True)
+    phone_number = serializers.CharField(required=True)  # Telefon raqami majburiy
     auth_date = serializers.IntegerField()
     hash = serializers.CharField()
 
@@ -69,4 +70,3 @@ class LoginSerializer(serializers.Serializer):
     """Email and password login serializer"""
     email = serializers.EmailField(help_text="User email address")
     password = serializers.CharField(write_only=True, help_text="User password")
-
