@@ -30,8 +30,10 @@ logger = logging.getLogger(__name__)
 def telegram_auth_view(request):
     """
     Telegram Web App authentication endpoint with phone number
-    User avtomatik register yoki login qiladi
+    User automatically registers or logs in
     """
+    logger.info(f"Received auth request: {request.data}")
+
     serializer = TelegramAuthSerializer(data=request.data)
     if not serializer.is_valid():
         logger.error(f"Invalid data: {serializer.errors}")
@@ -40,9 +42,12 @@ def telegram_auth_view(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    # Get validated data - DO NOT MODIFY IT before verification
     auth_data = serializer.validated_data.copy()
 
-    # 1️⃣ Telegram auth tekshirish
+    logger.info(f"Validated auth data: {auth_data}")
+
+    # 1️⃣ Verify Telegram authentication
     if not verify_telegram_auth(auth_data):
         logger.warning(f"Invalid Telegram auth attempt for ID: {auth_data.get('id')}")
         return Response(
@@ -50,19 +55,20 @@ def telegram_auth_view(request):
             status=status.HTTP_401_UNAUTHORIZED
         )
 
+    # 2️⃣ Extract data after successful verification
     telegram_id = auth_data['id']
-    phone_number = auth_data.get('phone_number', '')  # Telefon raqamini olish
+    phone_number = auth_data.get('phone_number', '')
 
-    # 2️⃣ Telefon raqamini formatlash (+998 bilan boshlansa)
+    # 3️⃣ Format phone number (+998 prefix if not present)
     if phone_number and not phone_number.startswith('+'):
         phone_number = f"+{phone_number}"
 
     logger.info(f"Processing auth for telegram_id: {telegram_id}, phone: {phone_number}")
 
-    # 3️⃣ Telegram user uchun UNIQUE email
+    # 4️⃣ Create unique email for Telegram user
     email = f"telegram_{telegram_id}@telegram.local"
 
-    # 4️⃣ Ismni xavfsiz shakllantirish
+    # 5️⃣ Create safe name
     name = (
             f"{auth_data.get('first_name', '')} {auth_data.get('last_name', '')}".strip()
             or auth_data.get('username')
@@ -73,36 +79,36 @@ def telegram_auth_view(request):
 
     try:
         with transaction.atomic():
-            # 5️⃣ User yaratish yoki olish (telegram_id bo'yicha)
+            # 6️⃣ Get or create user (by telegram_id)
             user, created = User.objects.get_or_create(
                 telegram_id=telegram_id,
                 defaults={
                     'email': email,
                     'name': name,
                     'username': username,
-                    'phone_number': phone_number if phone_number else None,  # Telefon raqamini saqlash
+                    'phone_number': phone_number if phone_number else None,
                     'is_active': True,
                     'role': 'client',
                 }
             )
 
-            # 6️⃣ Agar user mavjud bo'lsa va telefon raqami yangi bo'lsa, yangilash
+            # 7️⃣ Update phone number if user exists and phone is new
             if not created and phone_number:
                 if user.phone_number != phone_number:
                     user.phone_number = phone_number
                     user.save(update_fields=['phone_number'])
                     logger.info(f"Updated phone number for user {telegram_id}")
 
-            # 7️⃣ Agar user soft-delete qilingan bo'lsa — tiklash
+            # 8️⃣ Restore user if soft-deleted
             if user.is_deleted:
                 user.restore()
                 logger.info(f"Restored deleted user {telegram_id}")
 
-            # 8️⃣ Login vaqtini yangilash
+            # 9️⃣ Update last login time
             user.last_login_at = timezone.now()
             user.save(update_fields=['last_login_at'])
 
-            # 9️⃣ Login history yozish
+            # 🔟 Log login history
             UserLoginHistory.objects.create(
                 user=user,
                 ip_address=get_client_ip(request),
@@ -110,7 +116,7 @@ def telegram_auth_view(request):
                 success=True
             )
 
-            # 🔟 JWT tokenlar
+            # 1️⃣1️⃣ Generate JWT tokens
             refresh = RefreshToken.for_user(user)
 
             logger.info(
@@ -133,7 +139,7 @@ def telegram_auth_view(request):
     except IntegrityError as e:
         logger.error(f"Telegram auth DB error: {str(e)}")
 
-        # Agar telefon raqami allaqachon mavjud bo'lsa
+        # If phone number already exists with another account
         if 'phone_number' in str(e):
             return Response(
                 {'error': 'This phone number is already registered with another account'},
