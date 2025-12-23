@@ -42,24 +42,26 @@ class RegistrationStates(StatesGroup):
 
 def generate_telegram_hash(auth_data: dict, bot_token: str) -> str:
     """
-    Generate Telegram Login Widget compatible hash (not WebApp init data).
-    phone_number must be excluded from the hash calculation.
+    Generate hash including phone_number
+    Telefon raqami bilan hash yaratish
     """
-    # Remove phone_number from hash calculation (it's not part of Telegram's hash)
-    data_for_hash = auth_data.copy()
-    data_for_hash.pop('phone_number', None)
-
     # Filter out empty values
-    filtered_data = {k: v for k, v in data_for_hash.items() if v not in ('', None)}
+    filtered_data = {k: v for k, v in auth_data.items() if v != '' and v is not None}
 
     # Create data check string (sorted keys)
-    data_check_arr = [f"{k}={v}" for k, v in sorted(filtered_data.items())]
-    data_check_string = '\n'.join(data_check_arr)
+    data_check_string = '\n'.join([
+        f"{key}={value}"
+        for key, value in sorted(filtered_data.items())
+    ])
 
-    # Telegram Login Widget verification:
-    # secret_key = sha256(bot_token), then HMAC of data_check_string with that key
-    secret_key = hashlib.sha256(bot_token.encode()).digest()
+    # Create secret key
+    secret_key = hmac.new(
+        key="WebAppData".encode(),
+        msg=bot_token.encode(),
+        digestmod=hashlib.sha256
+    ).digest()
 
+    # Generate hash
     hash_value = hmac.new(
         key=secret_key,
         msg=data_check_string.encode(),
@@ -68,7 +70,7 @@ def generate_telegram_hash(auth_data: dict, bot_token: str) -> str:
 
     logger.info(f"Data for hash: {filtered_data}")
     logger.info(f"Data check string: {data_check_string}")
-    logger.info(f"Generated Telegram hash: {hash_value}")
+    logger.info(f"Generated hash: {hash_value}")
     return hash_value
 
 
@@ -130,26 +132,23 @@ async def phone_received_handler(message: Message, state: FSMContext):
 
     logger.info(f"Phone number received from user {telegram_id}: {phone_number}")
 
-    # Telegram auth data yaratish (WITHOUT phone_number for hash)
-    auth_data_for_hash = {
+    # Auth data with phone_number included in hash
+    auth_data = {
         'id': telegram_id,
-        'auth_date': int(time.time())
+        'auth_date': int(time.time()),
+        'phone_number': phone_number  # Telefon raqami ham hash'ga kiradi
     }
 
     # Bo'sh bo'lmagan maydonlarni qo'shish
     if first_name:
-        auth_data_for_hash['first_name'] = first_name
+        auth_data['first_name'] = first_name
     if last_name:
-        auth_data_for_hash['last_name'] = last_name
+        auth_data['last_name'] = last_name
     if username:
-        auth_data_for_hash['username'] = username
+        auth_data['username'] = username
 
-    # Hash yaratish (phone_number'siz)
-    auth_hash = generate_telegram_hash(auth_data_for_hash, BOT_TOKEN)
-
-    # Full auth data with phone_number for API
-    auth_data = auth_data_for_hash.copy()
-    auth_data['phone_number'] = phone_number
+    # Hash yaratish (phone_number bilan)
+    auth_hash = generate_telegram_hash(auth_data, BOT_TOKEN)
     auth_data['hash'] = auth_hash
 
     # Mini app URL yaratish
@@ -184,14 +183,11 @@ async def phone_received_handler(message: Message, state: FSMContext):
                         success = response_data.get('success')
                         created = response_data.get('created')
                         user_data_response = response_data.get('user', {})
-                        tokens = response_data.get('tokens', {})
 
                         if success:
                             user_name = user_data_response.get('name', first_name)
 
-                            # Keyboard'ni olib tashlash
                             if created:
-                                # Yangi user yaratildi
                                 logger.info(f"New user created: {telegram_id}")
                                 await message.answer(
                                     f"🎉 Welcome to Marketplace, <b>{user_name}</b>!\n\n"
@@ -206,7 +202,6 @@ async def phone_received_handler(message: Message, state: FSMContext):
                                     reply_markup=keyboard
                                 )
                             else:
-                                # Mavjud user login qildi
                                 logger.info(f"Existing user logged in: {telegram_id}")
                                 await message.answer(
                                     f"👋 Welcome back, <b>{user_name}</b>!\n\n"
@@ -221,8 +216,6 @@ async def phone_received_handler(message: Message, state: FSMContext):
                                 )
 
                             logger.info(f"Access token received for user {telegram_id}")
-
-                            # State'ni tozalash
                             await state.clear()
 
                         else:
@@ -300,3 +293,5 @@ if __name__ == "__main__":
     import asyncio
 
     asyncio.run(main())
+
+

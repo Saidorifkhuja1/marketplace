@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 def verify_telegram_auth(auth_data):
     """
-    Telegram WebApp authentication verification
-    phone_number is excluded from hash calculation as it's not part of Telegram's auth data
+    Telegram authentication verification WITH phone_number in hash
+    Telefon raqami bilan hash tekshirish
     """
     try:
         # Make a copy to avoid modifying the original
@@ -24,9 +24,8 @@ def verify_telegram_auth(auth_data):
 
         logger.info(f"Received hash: {received_hash}")
 
-        # Remove phone_number from hash verification (it's not part of Telegram's hash)
-        phone_number = data_to_verify.pop('phone_number', None)
-        logger.info(f"Phone number (excluded from hash): {phone_number}")
+        # Phone_number ham hash'ga kiradi (o'chirmaymiz)
+        logger.info(f"Data with phone_number: {data_to_verify}")
 
         # Verify auth_date (should not be older than 24 hours)
         auth_date = data_to_verify.get('auth_date')
@@ -92,4 +91,3 @@ def get_client_ip(request):
     else:
         ip = request.META.get('REMOTE_ADDR')
     return ip
-
