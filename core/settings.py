@@ -28,7 +28,8 @@ sys.path.append(str(BASE_DIR / 'tg_bot'))
 
 try:
     from tokens import BOT_TOKEN
-    TELEGRAM_BOT_TOKEN = BOT_TOKEN
+    # TELEGRAM_BOT_TOKEN = BOT_TOKEN
+    TELEGRAM_BOT_TOKEN = "8198411082:AAHpm29cZv5TDRT8GBEx9REo2J26N7_8yVs"
     print(f"✅ Telegram Bot Token imported successfully")
 except ImportError as e:
     print(f"❌ Error importing BOT_TOKEN: {e}")
