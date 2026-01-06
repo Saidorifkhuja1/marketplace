@@ -105,7 +105,7 @@ cd marketplace
 
 2. **Create environment file**
 ```bash
-cp .env.example .env
+cp .envexample .env
 ```
 
 3. **Build and run with Docker**
@@ -268,7 +268,7 @@ Quick deployment:
 # On your server
 git clone <repository-url>
 cd marketplace
-cp .env.example .env
+cp .envexample .env
 # Edit .env with production values
 docker-compose up -d
 docker-compose exec web python manage.py migrate

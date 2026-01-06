@@ -38,7 +38,7 @@ chmod +x start.sh
 
 1. **Create environment file**
 ```bash
-cp .env.example .env
+cp .envexample .env
 # Edit .env with your settings
 ```
 

@@ -42,7 +42,7 @@ chmod +x start.sh
 ### Manual Setup
 ```bash
 # 1. Create environment file
-cp .env.example .env
+cp .envexample .env
 
 # 2. Edit .env with your settings
 nano .env
@@ -210,7 +210,7 @@ sh get-docker.sh
 ```bash
 git clone <your-repo-url>
 cd marketplace
-cp .env.example .env
+cp .envexample .env
 
 # Edit .env with production values
 nano .env

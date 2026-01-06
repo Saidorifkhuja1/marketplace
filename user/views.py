@@ -1,5 +1,7 @@
 from django.db import transaction, IntegrityError
 from django.conf import settings
+from rest_framework.generics import GenericAPIView
+from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from rest_framework import status, generics
@@ -18,7 +20,8 @@ from .serializers import (
     UserUpdateSerializer,
     PasswordResetSerializer,
     LoginHistorySerializer,
-    LoginSerializer
+    LoginSerializer,
+    TelegramLoginSerializer
 )
 from .telegram_auth import verify_telegram_auth, get_client_ip
 
@@ -366,3 +369,33 @@ def login_view(request):
         )
 
 
+
+
+class TelegramTokenObtainView(GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = TelegramLoginSerializer  # 🔴 MUHIM
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.validated_data["user"]
+
+        refresh = RefreshToken.for_user(user)
+
+        return Response(
+            {
+                "success": True,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": {
+                    "uid": str(user.uid),
+                    "name": user.name,
+                    "email": user.email,
+                    "phone_number": user.phone_number,
+                    "telegram_id": user.telegram_id,
+                    "role": user.role,
+                }
+            },
+            status=status.HTTP_200_OK
+        )

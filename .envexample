@@ -1,0 +1,7 @@
+DEBUG=True
+DB_NAME=market
+DB_USER=postgres
+DB_PASSWORD=said2000
+DB_HOST=localhost
+DB_PORT=5432
+SECRET_KEY=your-super-secret-key-change-this-in-production

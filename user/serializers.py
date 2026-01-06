@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import User, UserLoginHistory
-
+from rest_framework.exceptions import AuthenticationFailed
 
 class TelegramAuthSerializer(serializers.Serializer):
     """Telegram Web App authentication serializer with phone number"""
@@ -71,4 +71,20 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(help_text="User email address")
     password = serializers.CharField(write_only=True, help_text="User password")
 
+class TelegramLoginSerializer(serializers.Serializer):
+    telegram_id = serializers.IntegerField()
 
+    def validate(self, attrs):
+        telegram_id = attrs.get("telegram_id")
+
+        try:
+            user = User.objects.get(
+                telegram_id=telegram_id,
+                is_active=True,
+                is_deleted=False
+            )
+        except User.DoesNotExist:
+            raise AuthenticationFailed("User with this telegram_id not found")
+
+        attrs["user"] = user
+        return attrs

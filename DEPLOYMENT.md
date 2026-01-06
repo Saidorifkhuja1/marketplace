@@ -22,7 +22,7 @@ cd marketplace
 ### 2. Create Environment File
 
 ```bash
-cp .env.example .env
+cp .envexample .env
 ```
 
 Edit `.env` with your local settings:
